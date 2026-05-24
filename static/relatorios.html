@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios - Sistema VHF</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .filtros-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .btn-relatorio {
+            background: var(--gradient);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        .resultados-container {
+            margin-top: 20px;
+        }
+        .estatisticas {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .estatistica-card {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+        .estatistica-card .numero {
+            font-size: 2rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .estatistica-card .label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .incidentes-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .incidentes-table th, .incidentes-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .incidentes-table th {
+            background: var(--bg-primary);
+        }
+        .pdf-header, .pdf-footer {
+            display: none;
+        }
+        @media print {
+            body { background: white; padding: 20px; }
+            .header, .nav-tabs, .filtros-container, .export-buttons, .btn-logout, .btn-relatorio { display: none; }
+            .pdf-header, .pdf-footer { display: block; }
+            .resultados-container { display: block !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'">
+                <h1>📡 VHF Incidentes</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info"><span>👤</span><span id="username"></span></div>
+                <button class="btn-logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">📊 Dashboard</a>
+            <a href="/incidencias/ativas" class="nav-tab">🟡 Incidentes Ativos</a>
+            <a href="/incidencias/fechadas" class="nav-tab">✅ Incidentes Fechados</a>
+            <a href="/incidencia/nova" class="nav-tab">➕ Novo Incidente</a>
+            <a href="/relatorios" class="nav-tab active">📈 Relatórios</a>
+            <a href="/configuracoes" class="nav-tab">⚙️ Configurações</a>
+        </div>
+
+        <div class="pdf-header" id="pdfHeader">
+            <h2>📡 Sistema de Gestão de Incidentes VHF</h2>
+            <p>Relatório de Incidentes - Gerado em <span id="pdfData"></span></p>
+            <hr>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span>📊 Gerador de Relatórios</span>
+            </div>
+            <div class="card-body">
+                <div class="filtros-container">
+                    <div class="filtros-grid">
+                        <div class="form-group"><label>📅 Data Início</label><input type="date" id="dataInicio"></div>
+                        <div class="form-group"><label>📅 Data Fim</label><input type="date" id="dataFim"></div>
+                        <div class="form-group"><label>📍 Estação</label><select id="filtroEstacao"><option value="">Todas</option></select></div>
+                        <div class="form-group"><label>🏷️ Classificação</label><select id="filtroClassificacao"><option value="">Todas</option><option value="Crítica">ALTA</option><option value="Menor">BAIXA</option></select></div>
+                        <div class="form-group"><label>📊 Status</label><select id="filtroStatus"><option value="">Todos</option><option value="Ativa">Ativos</option><option value="Cerrada">Fechados</option></select></div>
+                        <div class="form-group"><label>👤 Operador</label><select id="filtroOperador"><option value="">Todos</option></select></div>
+                        <div class="form-group"><label>👨‍🔧 Técnico</label><select id="filtroTecnico"><option value="">Todos</option></select></div>
+                    </div>
+                    <button class="btn-relatorio" onclick="gerarRelatorio()">📊 Gerar Relatório</button>
+                </div>
+
+                <div id="resultadosContainer" style="display:none;">
+                    <div class="estatisticas" id="estatisticas"></div>
+                    <div style="overflow-x: auto;"><div id="tabelaResultados"></div></div>
+                    <div class="export-buttons">
+                        <button class="btn-secondary" onclick="exportarCSV()">📎 Exportar CSV</button>
+                        <button class="btn-secondary" onclick="exportarJSON()">📋 Exportar JSON</button>
+                        <button class="btn-primary" onclick="exportarPDF()">📄 Exportar PDF</button>
+                    </div>
+                </div>
+                <div id="semResultados" style="display:none; text-align:center; padding:40px; color:#999;">Nenhum incidente encontrado com os filtros selecionados.</div>
+            </div>
+        </div>
+
+        <div class="pdf-footer" id="pdfFooter"><hr><p>Relatório gerado automaticamente pelo Sistema de Gestão de Incidentes VHF</p></div>
+    </div>
+
+    <script src="/static/utils.js"></script>
+    <script src="/static/role_manager.js"></script>
+    <script>
+        let resultadosAtuais = [];
+        let operadoresList = [];
+        let tecnicosList = [];
+        let estacoesList = [];
+
+        function isAlta(inc) {
+            const valor = inc.clasificacao || inc.classificacao || '';
+            return valor === 'Crítica' || valor === 'Alta' || valor === 'ALTA' || valor === 'critica' || valor === 'alta';
+        }
+
+        function duracaoParaHoras(duracaoStr) {
+            if (!duracaoStr || duracaoStr === '' || duracaoStr === 'undefined') return 0;
+            let horas = 0;
+            let minutos = 0;
+            const horasMatch = duracaoStr.match(/(\d+(?:\.\d+)?)\s*h/);
+            const minutosMatch = duracaoStr.match(/(\d+(?:\.\d+)?)\s*m/);
+            if (horasMatch) horas = parseFloat(horasMatch[1]);
+            if (minutosMatch) minutos = parseFloat(minutosMatch[1]);
+            if (minutosMatch && !horasMatch) return minutos / 60;
+            return horas + (minutos / 60);
+        }
+
+        function formatarDuracaoMedia(horas) {
+            if (horas === 'N/A') return 'N/A';
+            let h = Math.floor(horas);
+            let m = Math.round((horas - h) * 60);
+            if (h > 0 && m > 0) return `${h}h ${m}m`;
+            if (h > 0) return `${h}h`;
+            return `${m}m`;
+        }
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/check-auth');
+                const data = await response.json();
+                if (!data.authenticated) window.location.href = '/login';
+                else {
+                    document.getElementById('username').textContent = data.username;
+                    await carregarFiltros();
+                }
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
+
+        async function carregarFiltros() {
+            try {
+                const [incResponse, stationsResponse] = await Promise.all([
+                    fetch('/api/incidencias'),
+                    fetch('/api/config/stations')
+                ]);
+                
+                const incidencias = await incResponse.json();
+                const todasEstacoes = await stationsResponse.json();
+                estacoesList = todasEstacoes.filter(e => e.active);
+                
+                const operadoresSet = new Set();
+                const tecnicosSet = new Set();
+                incidencias.forEach(inc => {
+                    if (inc.operadorLACV && inc.operadorLACV !== '-') operadoresSet.add(inc.operadorLACV);
+                    if (inc.tecnicoINCO && inc.tecnicoINCO !== '-' && inc.tecnicoINCO !== '') tecnicosSet.add(inc.tecnicoINCO);
+                });
+                
+                operadoresList = Array.from(operadoresSet).sort();
+                tecnicosList = Array.from(tecnicosSet).sort();
+                
+                const filtroEstacao = document.getElementById('filtroEstacao');
+                if (filtroEstacao) {
+                    filtroEstacao.innerHTML = '<option value="">Todas</option>' + estacoesList.map(e => `<option value="${e.name.replace(/"/g, '&quot;')}">${e.name}</option>`).join('');
+                }
+                
+                const filtroOperador = document.getElementById('filtroOperador');
+                if (filtroOperador) {
+                    filtroOperador.innerHTML = '<option value="">Todos</option>' + operadoresList.map(op => `<option value="${op.replace(/"/g, '&quot;')}">${op}</option>`).join('');
+                }
+                
+                const filtroTecnico = document.getElementById('filtroTecnico');
+                if (filtroTecnico) {
+                    filtroTecnico.innerHTML = '<option value="">Todos</option>' + tecnicosList.map(tec => `<option value="${tec.replace(/"/g, '&quot;')}">${tec}</option>`).join('');
+                }
+                
+                const hoje = new Date();
+                const trintaDiasAtras = new Date();
+                trintaDiasAtras.setDate(hoje.getDate() - 30);
+                document.getElementById('dataInicio').value = trintaDiasAtras.toISOString().split('T')[0];
+                document.getElementById('dataFim').value = hoje.toISOString().split('T')[0];
+                
+            } catch (error) {
+                console.error('Erro ao carregar filtros:', error);
+            }
+        }
+
+        async function gerarRelatorio() {
+            try {
+                const response = await fetch('/api/incidencias');
+                let incidencias = await response.json();
+                
+                const dataInicio = document.getElementById('dataInicio').value;
+                const dataFim = document.getElementById('dataFim').value;
+                const estacao = document.getElementById('filtroEstacao').value;
+                const classificacao = document.getElementById('filtroClassificacao').value;
+                const status = document.getElementById('filtroStatus').value;
+                const operador = document.getElementById('filtroOperador').value;
+                const tecnico = document.getElementById('filtroTecnico').value;
+                
+                resultadosAtuais = incidencias.filter(inc => {
+                    const dataInc = inc.fechaDeteccion?.split('T')[0] || '';
+                    if (dataInicio && dataInc < dataInicio) return false;
+                    if (dataFim && dataInc > dataFim) return false;
+                    if (estacao && inc.estacion !== estacao) return false;
+                    if (classificacao && inc.clasificacion !== classificacao) return false;
+                    if (status === 'Ativa' && inc.estado === 'Cerrada') return false;
+                    if (status === 'Cerrada' && inc.estado !== 'Cerrada') return false;
+                    if (operador && inc.operadorLACV !== operador) return false;
+                    if (tecnico && inc.tecnicoINCO !== tecnico) return false;
+                    return true;
+                });
+                
+                exibirResultados();
+            } catch (error) {
+                alert('Erro ao gerar relatório: ' + error.message);
+            }
+        }
+        
+        function exibirResultados() {
+            const container = document.getElementById('resultadosContainer');
+            const semResultados = document.getElementById('semResultados');
+            const estatisticasDiv = document.getElementById('estatisticas');
+            const tabelaDiv = document.getElementById('tabelaResultados');
+            
+            if (resultadosAtuais.length === 0) {
+                container.style.display = 'none';
+                semResultados.style.display = 'block';
+                return;
+            }
+            
+            container.style.display = 'block';
+            semResultados.style.display = 'none';
+            
+            const total = resultadosAtuais.length;
+            const alta = resultadosAtuais.filter(i => isAlta(i)).length;
+            const baixa = total - alta;
+            const ativos = resultadosAtuais.filter(i => i.estado !== 'Cerrada').length;
+            const fechados = resultadosAtuais.filter(i => i.estado === 'Cerrada').length;
+            
+            let tempoTotalRemoto = 0, tempoTotalPresencial = 0, countRemoto = 0, countPresencial = 0;
+            resultadosAtuais.forEach(inc => {
+                let duracaoRemoto = inc.remoto?.duracao || '';
+                if (duracaoRemoto && duracaoRemoto !== 'undefined' && duracaoRemoto !== '') {
+                    let horas = duracaoParaHoras(duracaoRemoto);
+                    if (horas > 0) { tempoTotalRemoto += horas; countRemoto++; }
+                }
+                let duracaoPresencial = inc.presencial?.duracao || '';
+                if (duracaoPresencial && duracaoPresencial !== 'undefined' && duracaoPresencial !== '') {
+                    let horas = duracaoParaHoras(duracaoPresencial);
+                    if (horas > 0) { tempoTotalPresencial += horas; countPresencial++; }
+                }
+            });
+            
+            const tempoMedioRemoto = countRemoto > 0 ? formatarDuracaoMedia(tempoTotalRemoto / countRemoto) : 'N/A';
+            const tempoMedioPresencial = countPresencial > 0 ? formatarDuracaoMedia(tempoTotalPresencial / countPresencial) : 'N/A';
+            
+            estatisticasDiv.innerHTML = `
+                <div class="estatistica-card"><div class="numero">${total}</div><div class="label">Total Incidentes</div></div>
+                <div class="estatistica-card"><div class="numero">${alta}</div><div class="label">Prioridade ALTA</div></div>
+                <div class="estatistica-card"><div class="numero">${baixa}</div><div class="label">Prioridade BAIXA</div></div>
+                <div class="estatistica-card"><div class="numero">${ativos}</div><div class="label">Ativos</div></div>
+                <div class="estatistica-card"><div class="numero">${fechados}</div><div class="label">Fechados</div></div>
+                <div class="estatistica-card"><div class="numero">${tempoMedioRemoto}</div><div class="label">Tempo Médio Remoto</div></div>
+                <div class="estatistica-card"><div class="numero">${tempoMedioPresencial}</div><div class="label">Tempo Médio Presencial</div></div>
+            `;
+            
+            // TABELA CORRIGIDA - com todas as tags bem fechadas
+            let html = '<table class="incidentes-table"><thead><tr>';
+            html += '<th>ID</th><th>Estação</th><th>Classificação</th><th>Status</th><th>Operador</th><th>Técnico</th><th>Data</th><th>Duração Remoto</th><th>Duração Presencial</th>';
+            html += '</tr></thead><tbody>';
+            
+            for (let inc of resultadosAtuais) {
+                let duracaoRemoto = (inc.remoto?.duracao && inc.remoto?.duracao !== 'undefined') ? inc.remoto.duracao : '-';
+                let duracaoPresencial = (inc.presencial?.duracao && inc.presencial?.duracao !== 'undefined') ? inc.presencial.duracao : '-';
+                
+                html += '<tr>';
+                html += '<td>#' + inc.id + '</td>';
+                html += '<td>' + (inc.estacion?.split('-')[0].trim() || inc.estacion || '-') + '</td>';
+                html += '<td><span class="badge ' + (inc.clasificacion === 'Crítica' ? 'badge-alta' : 'badge-baixa') + '">' + (inc.clasificacion === 'Crítica' ? 'ALTA' : 'BAIXA') + '</span></td>';
+                html += '<td><span class="badge ' + (inc.estado !== 'Cerrada' ? 'badge-ativa' : 'badge-fechada') + '">' + (inc.estado !== 'Cerrada' ? 'ATIVO' : 'FECHADO') + '</span></td>';
+                html += '<td>' + (inc.operadorLACV || '-') + '</td>';
+                html += '<td>' + (inc.tecnicoINCO || '-') + '</td>';
+                html += '<td>' + (inc.fechaDeteccion?.split('T')[0] || '-') + '</td>';
+                html += '<td>' + duracaoRemoto + '</td>';
+                html += '<td>' + duracaoPresencial + '</td>';
+                html += '</tr>';
+            }
+            
+            html += '</tbody></table>';
+            tabelaDiv.innerHTML = html;
+        }
+        
+        function exportarCSV() {
+            if (resultadosAtuais.length === 0) { alert('Nenhum dado para exportar'); return; }
+            const headers = ['ID', 'Estação', 'Classificação', 'Status', 'Operador', 'Técnico', 'Data', 'Duração Remoto', 'Duração Presencial'];
+            const rows = resultadosAtuais.map(inc => [
+                inc.id, inc.estacion?.split('-')[0].trim() || inc.estacion, inc.clasificacao === 'Crítica' ? 'ALTA' : 'BAIXA',
+                inc.estado !== 'Cerrada' ? 'ATIVO' : 'FECHADO', inc.operadorLACV, inc.tecnicoINCO,
+                inc.fechaDeteccion?.split('T')[0], (inc.remoto?.duracao && inc.remoto?.duracao !== 'undefined') ? inc.remoto.duracao : '',
+                (inc.presencial?.duracao && inc.presencial?.duracao !== 'undefined') ? inc.presencial.duracao : ''
+            ]);
+            const csvContent = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+            const blob = new Blob(["\uFEFF" + csvContent], {type: 'text/csv;charset=utf-8;'});
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `relatorio_incidentes_${new Date().toISOString().slice(0,19)}.csv`; link.click();
+        }
+        
+        function exportarJSON() {
+            if (resultadosAtuais.length === 0) { alert('Nenhum dado para exportar'); return; }
+            const dataStr = JSON.stringify(resultadosAtuais, null, 2);
+            const blob = new Blob([dataStr], {type: 'application/json'});
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `relatorio_incidentes_${new Date().toISOString().slice(0,19)}.json`; link.click();
+        }
+        
+        function exportarPDF() {
+            if (resultadosAtuais.length === 0) { alert('Nenhum dado para exportar'); return; }
+            document.getElementById('pdfData').textContent = new Date().toLocaleString('pt-PT');
+            const elementosOcultar = document.querySelectorAll('.header, .nav-tabs, .filtros-container, .export-buttons, .btn-logout, .btn-relatorio, .card-header');
+            elementosOcultar.forEach(el => el.style.display = 'none');
+            document.getElementById('pdfHeader').style.display = 'block';
+            document.getElementById('pdfFooter').style.display = 'block';
+            const element = document.querySelector('.card-body');
+            html2pdf().set({ margin: [0.5, 0.5, 0.5, 0.5], filename: `relatorio_incidentes_${new Date().toISOString().slice(0,19)}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } }).from(element).save().then(() => {
+                elementosOcultar.forEach(el => el.style.display = '');
+                document.getElementById('pdfHeader').style.display = 'none';
+                document.getElementById('pdfFooter').style.display = 'none';
+            });
+        }
+        
+        async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login'; }
+        
+        checkAuth();
+    </script>
+</body>
+</html>

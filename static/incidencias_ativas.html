@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incidentes Ativos - Sistema VHF</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left"><img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'"><h1>📡 VHF Incidentes</h1></div>
+            <div class="header-right"><div class="user-info"><span>👤</span><span id="username"></span></div><button class="btn-logout" onclick="logout()">Sair</button></div>
+        </div>
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">📊 Dashboard</a>
+            <a href="/incidencias/ativas" class="nav-tab active">🟡 Incidentes Ativos</a>
+            <a href="/incidencias/fechadas" class="nav-tab">✅ Incidentes Fechados</a>
+            <a href="/incidencia/nova" class="nav-tab">➕ Novo Incidente</a>
+            <a href="/relatorios" class="nav-tab">📈 Relatórios</a>
+            <a href="/configuracoes" class="nav-tab">⚙️ Configurações</a>
+        </div>
+        <div class="card">
+            <div class="card-header"><span>🟡 Incidentes Ativos</span><button class="btn-primary" onclick="window.location.href='/incidencia/nova'" style="padding:5px 15px;">+ Novo Incidente</button></div>
+            <div class="card-body">
+                <table class="incidentes-table">
+                    <thead><tr><th>ID</th><th>Estação</th><th>Classificação</th><th>Operador</th><th>Data</th><th>Ações</th></tr></thead>
+                    <tbody id="incidentesList"><tr><td colspan="6" style="text-align:center">Carregando...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script src="/static/utils.js"></script>
+    <script src="/static/role_manager.js"></script>
+    <script>
+        async function checkAuth() {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            if (!data.authenticated) window.location.href = '/login';
+            else document.getElementById('username').textContent = data.username;
+        }
+
+        async function carregarIncidentes() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const estacaoFiltro = urlParams.get('estacao');
+            
+            const response = await fetch('/api/incidencias');
+            let incidencias = await response.json();
+            let ativos = incidencias.filter(i => i.estado !== 'Cerrada');
+            
+            if (estacaoFiltro) {
+                ativos = ativos.filter(i => i.estacion === estacaoFiltro);
+                document.querySelector('.card-header span').innerHTML = `🟡 Incidentes Ativos - ${estacaoFiltro.split('-')[0].trim()}`;
+            }
+            
+            const tbody = document.getElementById('incidentesList');
+            if (ativos.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Nenhum incidente ativo</td></tr>'; return; }
+            tbody.innerHTML = ativos.map(inc => `
+                <tr>
+                    <td>#${inc.id}</td>
+                    <td>${inc.estacion}</td>
+                    <td><span class="badge ${inc.clasificacion === 'Crítica' ? 'badge-alta' : 'badge-baixa'}">${inc.clasificacion === 'Crítica' ? 'ALTA' : 'BAIXA'}</span></td>
+                    <td>${inc.operadorLACV}</td>
+                    <td>${(inc.fechaDeteccion || '').split('T')[0]}</td>
+                    <td><button class="btn-outline" onclick="editar(${inc.id})">Editar</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function editar(id) { window.location.href = `/incidencia/editar/${id}`; }
+        async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login'; }
+
+        checkAuth();
+        carregarIncidentes();
+    </script>
+</body>
+</html>

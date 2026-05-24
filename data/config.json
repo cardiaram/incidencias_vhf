@@ -1,0 +1,127 @@
+{
+  "users": {
+    "admin": {
+      "password": "admin2025",
+      "role": "admin",
+      "name": "Administrador"
+    },
+    "Victor Argibay": {
+      "password": "Inco2018",
+      "role": "tecnico",
+      "name": "Victor Argibay"
+    },
+    "Carlos Diaz": {
+      "password": "Inco2018",
+      "role": "tecnico",
+      "name": "Carlos Diaz"
+    },
+    "Marcos Furtado": {
+      "password": "Inco2018",
+      "role": "tecnico",
+      "name": "Marcos Furtado"
+    },
+    "Jorge Almeida": {
+      "password": "Lacv2025",
+      "role": "operador",
+      "name": "Jorge Almeida"
+    },
+    "Samuel": {
+      "password": "Lacv2025",
+      "role": "operador",
+      "name": "Samuel"
+    },
+    "Victor Cruz": {
+      "password": "Lacv2025",
+      "role": "operador",
+      "name": "Victor Cruz"
+    },
+    "Jailson": {
+      "password": "Lacv2025",
+      "role": "operador",
+      "name": "Jailson"
+    }
+  },
+  "emails": {
+    "novo_incidente": [
+      "carlos.diaz@incoengenheiros.com",
+      "victor.argibay@incoengenheiros.com",
+      "marco.furtado@incoengenheiros.com"
+    ],
+    "atualizacao": [
+      "carlos.diaz@incoengenheiros.com",
+      "victor.argibay@incoengenheiros.com",
+      "marco.furtado@incoengenheiros.com"
+    ],
+    "fechamento": [
+      "carlos.diaz@incoengenheiros.com",
+      "victor.argibay@incoengenheiros.com",
+      "marco.furtado@incoengenheiros.com"
+    ],
+    "solicitacao_acesso": [
+      "carlos.diaz@incoengenheiros.com",
+      "victor.argibay@incoengenheiros.com",
+      "marco.furtado@incoengenheiros.com"
+    ],
+    "solicitacao_viagem": [
+      "carlos.diaz@incoengenheiros.com",
+      "victor.argibay@incoengenheiros.com",
+      "marco.furtado@incoengenheiros.com"
+    ]
+  },
+  "stations": [
+    {
+      "id": 1,
+      "name": "CCO Praia - Posto Operador",
+      "type": "operador",
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Praia - Estação Remota (Aeroporto Nelson Mandela)",
+      "type": "remota",
+      "active": true
+    },
+    {
+      "id": 3,
+      "name": "Fogo - São Filipe",
+      "type": "remota",
+      "active": true
+    },
+    {
+      "id": 4,
+      "name": "São Vicente - Cesária Évora",
+      "type": "remota",
+      "active": true
+    },
+    {
+      "id": 5,
+      "name": "São Nicolau - Preguiça",
+      "type": "remota",
+      "active": false
+    },
+    {
+      "id": 6,
+      "name": "Sal - Amílcar Cabral",
+      "type": "remota",
+      "active": true
+    },
+    {
+      "id": 7,
+      "name": "Boa Vista - Aristides Pereira",
+      "type": "remota",
+      "active": false
+    }
+  ],
+  "timezone": {
+    "offset": -1,
+    "daylight_saving": "auto",
+    "time_format": "24h"
+  },
+  "smtp": {
+    "server": "smtp.serviciodecorreo.es",
+    "port": 587,
+    "security": "TLS",
+    "username": "incidencias.lacv@incoengenheiros.com",
+    "from_name": "Sistema de Gestão de Incidentes VHF"
+  }
+}

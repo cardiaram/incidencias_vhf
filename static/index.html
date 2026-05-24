@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Gestão de Incidentes VHF</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="header-left" style="justify-content:center; margin-bottom:20px;">
+            <img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'">
+            <h1>📡 VHF Incidentes</h1>
+        </div>
+        <p style="text-align:center; margin-bottom:20px; color:var(--text-secondary);">Sistema de Gestão de Incidentes</p>
+        
+        <div id="errorMessage" class="error-message"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label>👤 Utilizador</label>
+                <input type="text" id="username" placeholder="Digite seu utilizador" required>
+            </div>
+            <div class="form-group">
+                <label>🔒 Senha</label>
+                <input type="password" id="password" placeholder="Digite sua senha" required>
+            </div>
+            <button type="submit" class="btn-primary" style="width:100%;">Entrar</button>
+        </form>
+        <div class="info" style="text-align:center; margin-top:20px; font-size:0.8rem; color:#999;">
+            <p>Utilizadores: lacv / inco / admin</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/';
+                } else {
+                    errorDiv.textContent = data.error || 'Utilizador ou senha inválidos';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Erro de conexão com o servidor';
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

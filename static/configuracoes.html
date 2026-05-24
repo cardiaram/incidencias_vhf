@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações - Sistema VHF</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .config-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .config-tab {
+            padding: 8px 20px;
+            background: var(--bg-primary);
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .config-tab:hover { transform: translateY(-2px); }
+        .config-tab.active { background: var(--gradient); color: white; }
+        .config-panel { display: none; }
+        .config-panel.active { display: block; }
+        .email-item { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .email-item input { flex: 1; }
+        .user-table, .stations-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .user-table th, .user-table td,
+        .stations-table th, .stations-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .user-table th, .stations-table th { background: var(--bg-primary); }
+        .role-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .role-admin { background: #dc3545; color: white; }
+        .role-tecnico { background: #17a2b8; color: white; }
+        .role-operador { background: #28a745; color: white; }
+        .station-operador { background: #17a2b8; color: white; }
+        .station-remota { background: #6c757d; color: white; }
+        .smtp-config { background: var(--bg-primary); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .smtp-config h4 { margin-bottom: 15px; color: #667eea; }
+        .backup-buttons { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px; }
+        code { background: var(--bg-primary); padding: 10px; border-radius: 8px; display: block; font-family: monospace; }
+        .filtros-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left"><img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'"><h1>📡 VHF Incidentes</h1></div>
+            <div class="header-right"><div class="user-info"><span>👤</span><span id="username"></span></div><button class="btn-logout" onclick="logout()">Sair</button></div>
+        </div>
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">📊 Dashboard</a>
+            <a href="/incidencias/ativas" class="nav-tab">🟡 Incidentes Ativos</a>
+            <a href="/incidencias/fechadas" class="nav-tab">✅ Incidentes Fechados</a>
+            <a href="/incidencia/nova" class="nav-tab">➕ Novo Incidente</a>
+            <a href="/relatorios" class="nav-tab">📈 Relatórios</a>
+            <a href="/configuracoes" class="nav-tab active">⚙️ Configurações</a>
+        </div>
+        <div class="card">
+            <div class="card-header"><span>⚙️ Configurações do Sistema</span></div>
+            <div class="card-body">
+                <div class="config-tabs">
+                    <button class="config-tab active" onclick="mostrarPainel('usuarios')">👥 Usuários</button>
+                    <button class="config-tab" onclick="mostrarPainel('emails')">📧 Notificações</button>
+                    <button class="config-tab" onclick="mostrarPainel('estacoes')">📡 Estações</button>
+                    <button class="config-tab" onclick="mostrarPainel('smtp')">🔧 Servidor SMTP</button>
+                    <button class="config-tab" onclick="mostrarPainel('fuso')">🌍 Fuso Horário</button>
+                    <button class="config-tab" onclick="mostrarPainel('backup')">💾 Backup</button>
+                    
+                </div>
+
+                <!-- PAINEL USUÁRIOS -->
+                <div id="painel-usuarios" class="config-panel active">
+                    <div style="margin-bottom:20px;"><h3>Adicionar Novo Usuário</h3>
+                    <div class="filtros-grid">
+                        <input type="text" id="novoUsername" placeholder="Usuário (login)">
+                        <input type="password" id="novaSenha" placeholder="Senha">
+                        <select id="novoRole">
+                            <option value="operador">Operador</option>
+                            <option value="tecnico">Técnico</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                        <input type="text" id="novoNome" placeholder="Nome completo">
+                        <button class="btn-primary" onclick="adicionarUsuario()">+ Adicionar</button>
+                    </div></div>
+                    <h3>Usuários Existentes</h3>
+                    <table class="user-table"><thead><tr><th>Usuário</th><th>Nome</th><th>Papel</th><th>Ações</th></tr></thead><tbody id="listaUsuarios"></tbody></table>
+                </div>
+
+                <!-- PAINEL NOTIFICAÇÕES -->
+                <div id="painel-emails" class="config-panel">
+                    <div class="form-group"><label>📧 Novo Incidente</label><div id="emails-novo_incidente"></div><button class="btn-outline" onclick="adicionarEmail('novo_incidente')">+ Adicionar</button></div>
+                    <div class="form-group"><label>📝 Atualização de Incidente</label><div id="emails-atualizacao"></div><button class="btn-outline" onclick="adicionarEmail('atualizacao')">+ Adicionar</button></div>
+                    <div class="form-group"><label>✅ Fechamento de Incidente</label><div id="emails-fechamento"></div><button class="btn-outline" onclick="adicionarEmail('fechamento')">+ Adicionar</button></div>
+                    <div class="form-group"><label>🔐 Solicitação de Acesso</label><div id="emails-solicitacao_acesso"></div><button class="btn-outline" onclick="adicionarEmail('solicitacao_acesso')">+ Adicionar</button></div>
+                    <div class="form-group"><label>✈️ Solicitação de Viagem</label><div id="emails-solicitacao_viagem"></div><button class="btn-outline" onclick="adicionarEmail('solicitacao_viagem')">+ Adicionar</button></div>
+                    <button class="btn-primary" onclick="salvarEmails()" style="margin-top:20px;">💾 Salvar Configurações</button>
+                </div>
+
+                <!-- PAINEL ESTAÇÕES -->
+                <div id="painel-estacoes" class="config-panel">
+                    <div style="margin-bottom:20px;">
+                        <h3>Adicionar Nova Estação</h3>
+                        <div class="filtros-grid">
+                            <input type="text" id="novaEstacaoNome" placeholder="Nome da estação">
+                            <select id="novaEstacaoTipo">
+                                <option value="operador">👨‍💼 Posto Operador</option>
+                                <option value="remota">📡 Estação Remota</option>
+                            </select>
+                            <button class="btn-primary" onclick="adicionarEstacao()">+ Adicionar</button>
+                        </div>
+                    </div>
+                    <h3>Lista de Estações</h3>
+                    <table class="stations-table">
+                        <thead>
+                            <tr><th>ID</th><th>Nome</th><th>Tipo</th><th>Status</th><th>Ações</th></tr>
+                        </thead>
+                        <tbody id="listaEstacoes"></tbody>
+                    </table>
+                </div>
+
+                <!-- PAINEL SERVIDOR SMTP -->
+                <div id="painel-smtp" class="config-panel">
+                    <div class="smtp-config">
+                        <h4>📧 Configuração do Servidor de E-mail (SMTP)</h4>
+                        <div class="form-group"><label>Servidor SMTP</label><input type="text" id="smtp_server" value="smtp.serviciodecorreo.es"></div>
+                        <div class="filtros-grid">
+                            <div class="form-group"><label>Porta</label><input type="number" id="smtp_port" value="587"></div>
+                            <div class="form-group"><label>Segurança</label><select id="smtp_security"><option value="TLS">TLS (STARTTLS)</option><option value="SSL">SSL</option></select></div>
+                        </div>
+                        <div class="form-group"><label>Usuário (e-mail)</label><input type="email" id="smtp_user" value="incidencias.lacv@incoengenheiros.com"></div>
+                        <div class="form-group"><label>Senha</label><input type="password" id="smtp_password" value="Inco2026l@cv"></div>
+                        <div class="form-group"><label>Nome do Remetente</label><input type="text" id="smtp_from_name" value="Sistema de Gestão de Incidentes VHF"></div>
+                        <div class="filtros-grid">
+                            <button class="btn-primary" onclick="salvarConfigSMTP()">💾 Salvar Configuração SMTP</button>
+                            <button class="btn-secondary" onclick="testarSMTP()">📧 Testar Envio</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- PAINEL FUSO HORÁRIO -->
+<div id="painel-fuso" class="config-panel">
+    <div class="smtp-config">
+        <h4>🌍 Configuração de Fuso Horário</h4>
+        <div class="form-group">
+            <label>Fuso Horário (UTC)</label>
+            <select id="timezone_offset">
+                <option value="-12">UTC-12</option>
+                <option value="-11">UTC-11</option>
+                <option value="-10">UTC-10</option>
+                <option value="-9">UTC-9</option>
+                <option value="-8">UTC-8</option>
+                <option value="-7">UTC-7</option>
+                <option value="-6">UTC-6</option>
+                <option value="-5">UTC-5</option>
+                <option value="-4">UTC-4</option>
+                <option value="-3">UTC-3</option>
+                <option value="-2">UTC-2</option>
+                <option value="-1">UTC-1</option>
+                <option value="0" selected>UTC+0</option>
+                <option value="1">UTC+1</option>
+                <option value="2">UTC+2</option>
+                <option value="3">UTC+3</option>
+                <option value="4">UTC+4</option>
+                <option value="5">UTC+5</option>
+                <option value="6">UTC+6</option>
+                <option value="7">UTC+7</option>
+                <option value="8">UTC+8</option>
+                <option value="9">UTC+9</option>
+                <option value="10">UTC+10</option>
+                <option value="11">UTC+11</option>
+                <option value="12">UTC+12</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Horário de Verão</label>
+            <select id="daylight_saving">
+                <option value="auto">Automático (seguir sistema)</option>
+                <option value="on">Sempre ativo (+1 hora)</option>
+                <option value="off">Sempre desativado</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Formato de Hora</label>
+            <select id="time_format">
+                <option value="24h" selected>24 horas (00:00 - 23:59)</option>
+                <option value="12h">12 horas (AM/PM)</option>
+            </select>
+        </div>
+        <button class="btn-primary" onclick="salvarConfigFuso()">💾 Salvar Configuração de Fuso Horário</button>
+        <button class="btn-secondary" onclick="carregarConfigFuso()" style="margin-left:10px;">🔄 Recarregar</button>
+    </div>
+</div>
+               
+
+<script>
+async function salvarConfigTimezone() {
+    const config = {
+        offset: parseInt(document.getElementById('timezone_offset').value),
+        daylight_saving: document.getElementById('daylight_saving').value,
+        time_format: document.getElementById('time_format').value
+    };
+    const response = await fetch('/api/config/timezone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+    });
+    if (response.ok) {
+        alert('Configuração de horário salva! A página será recarregada.');
+        location.reload();
+    } else {
+        alert('Erro ao salvar configuração');
+    }
+}
+
+async function carregarConfigTimezone() {
+    const response = await fetch('/api/config/timezone');
+    if (response.ok) {
+        const config = await response.json();
+        document.getElementById('timezone_offset').value = config.offset || 0;
+        document.getElementById('daylight_saving').value = config.daylight_saving || 'auto';
+        document.getElementById('time_format').value = config.time_format || '24h';
+    }
+}
+</script>
+
+                <!-- PAINEL BACKUP -->
+                <div id="painel-backup" class="config-panel">
+                    <div class="smtp-config">
+                        <h4>📊 Backup dos Dados</h4>
+                        <div class="backup-buttons">
+                            <button class="btn-secondary" onclick="backupDados()">💾 Download Backup</button>
+                            <button class="btn-secondary" onclick="restaurarDados()">🔄 Restaurar Backup</button>
+                        </div>
+                    </div>
+                    <div class="smtp-config">
+                        <h4>📁 Informações do Sistema</h4>
+                        <code id="dataPath"></code>
+                        <p style="margin-top:10px; font-size:0.8rem; color:var(--text-secondary);">Os dados são armazenados em um arquivo JSON local. Recomenda-se fazer backup regularmente.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/utils.js"></script>
+    <script src="/static/role_manager.js"></script>
+    <script>
+        let configAtual = null;
+        let estacoesList = [];
+
+        async function checkAuth() {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            if (!data.authenticated) window.location.href = '/login';
+            else { 
+                document.getElementById('username').textContent = data.username; 
+                if (data.role !== 'admin') { 
+                    alert('Acesso negado. Apenas administradores.'); 
+                    window.location.href = '/'; 
+                } else { 
+                    carregarConfig();
+                    carregarEstacoes();
+                }
+            }
+            document.getElementById('dataPath').textContent = window.location.origin + '/data/incidencias.json';
+        }
+
+        async function carregarConfig() { 
+            const response = await fetch('/api/config'); 
+            configAtual = await response.json(); 
+            carregarUsuarios(); 
+            carregarEmails(); 
+        }
+
+        async function carregarEstacoes() {
+            const response = await fetch('/api/config/stations');
+            estacoesList = await response.json();
+            const tbody = document.getElementById('listaEstacoes');
+            tbody.innerHTML = '';
+            
+            for (const est of estacoesList) {
+                const tipoTexto = est.type === 'operador' ? '👨‍💼 Posto Operador' : '📡 Estação Remota';
+                const tipoClasse = est.type === 'operador' ? 'station-operador' : 'station-remota';
+                const statusText = est.active ? 'Ativo' : 'Inativo';
+                const statusClasse = est.active ? 'badge-ativa' : 'badge-fechada';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${est.id}</td>
+                        <td><input type="text" id="estacao_nome_${est.id}" value="${est.name.replace(/"/g, '&quot;')}" style="width:100%"></td>
+                        <td>
+                            <select id="estacao_tipo_${est.id}">
+                                <option value="operador" ${est.type === 'operador' ? 'selected' : ''}>Posto Operador</option>
+                                <option value="remota" ${est.type === 'remota' ? 'selected' : ''}>Estação Remota</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select id="estacao_status_${est.id}">
+                                <option value="true" ${est.active ? 'selected' : ''}>Ativo</option>
+                                <option value="false" ${!est.active ? 'selected' : ''}>Inativo</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button class="btn-secondary" onclick="salvarEstacao(${est.id})">💾 Salvar</button>
+                            <button class="btn-danger" onclick="removerEstacao(${est.id})">🗑️ Remover</button>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function carregarUsuarios() {
+            const tbody = document.getElementById('listaUsuarios'); 
+            tbody.innerHTML = '';
+            for (const [user, info] of Object.entries(configAtual.users)) {
+                const roleClass = info.role === 'admin' ? 'role-admin' : (info.role === 'tecnico' ? 'role-tecnico' : 'role-operador');
+                const roleText = info.role === 'admin' ? 'Administrador' : (info.role === 'tecnico' ? 'Técnico' : 'Operador');
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${user}</td>
+                        <td>${info.name || user}</td>
+                        <td><span class="role-badge ${roleClass}">${roleText}</span></td>
+                        <td>${user !== 'admin' ? `<button class="btn-danger" onclick="removerUsuario('${user}')">Remover</button>` : ''}</td>
+                    </tr>
+                `;
+            }
+        }
+
+        function carregarEmails() {
+            const tipos = ['novo_incidente', 'atualizacao', 'fechamento', 'solicitacao_acesso', 'solicitacao_viagem'];
+            tipos.forEach(tipo => {
+                const container = document.getElementById(`emails-${tipo}`);
+                if (container) {
+                    const emails = configAtual.emails[tipo] || [];
+                    container.innerHTML = '';
+                    emails.forEach((email, idx) => { 
+                        container.innerHTML += `<div class="email-item"><input type="email" value="${email}" onchange="atualizarEmail('${tipo}', ${idx}, this.value)"><button class="btn-danger" onclick="removerEmail('${tipo}', ${idx})">✖</button></div>`; 
+                    });
+                    if (emails.length === 0) container.innerHTML = '<p style="color:#999;">Nenhum email configurado</p>';
+                }
+            });
+        }
+
+        function adicionarEmail(tipo) { 
+            const novoEmail = prompt('Digite o endereço de email:'); 
+            if (novoEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(novoEmail)) { 
+                if (!configAtual.emails[tipo]) configAtual.emails[tipo] = []; 
+                configAtual.emails[tipo].push(novoEmail); 
+                carregarEmails(); 
+            } else if (novoEmail) alert('Email inválido'); 
+        }
+        
+        function removerEmail(tipo, idx) { 
+            configAtual.emails[tipo].splice(idx, 1); 
+            carregarEmails(); 
+        }
+        
+        function atualizarEmail(tipo, idx, valor) { 
+            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) configAtual.emails[tipo][idx] = valor; 
+            else { alert('Email inválido'); carregarEmails(); } 
+        }
+        
+        async function salvarEmails() {
+            const tipos = ['novo_incidente', 'atualizacao', 'fechamento', 'solicitacao_acesso', 'solicitacao_viagem'];
+            for (const tipo of tipos) {
+                const response = await fetch('/api/config/emails', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ tipo, emails: configAtual.emails[tipo] || [] }) 
+                });
+                if (!response.ok) { alert(`Erro ao salvar ${tipo}`); return; }
+            }
+            alert('Configurações de email salvas com sucesso!');
+        }
+
+        async function salvarConfigSMTP() {
+            const config = { 
+                server: document.getElementById('smtp_server').value, 
+                port: parseInt(document.getElementById('smtp_port').value), 
+                security: document.getElementById('smtp_security').value, 
+                username: document.getElementById('smtp_user').value, 
+                password: document.getElementById('smtp_password').value, 
+                from_name: document.getElementById('smtp_from_name').value 
+            };
+            const response = await fetch('/api/config/smtp', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(config) 
+            });
+            if (response.ok) alert('Configuração SMTP salva com sucesso!'); 
+            else alert('Erro ao salvar configuração SMTP');
+        }
+
+        async function testarSMTP() {
+            const config = { 
+                server: document.getElementById('smtp_server').value, 
+                port: parseInt(document.getElementById('smtp_port').value), 
+                security: document.getElementById('smtp_security').value, 
+                username: document.getElementById('smtp_user').value, 
+                password: document.getElementById('smtp_password').value, 
+                from_name: document.getElementById('smtp_from_name').value 
+            };
+            const destinatario = prompt('Digite o email para teste:', config.username);
+            if (!destinatario) return;
+            const response = await fetch('/api/config/test-email', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ config, destinatario }) 
+            });
+            const result = await response.json();
+            if (result.success) alert('Email de teste enviado com sucesso!'); 
+            else alert('Erro ao enviar email: ' + (result.error || 'Verifique as configurações'));
+        }
+
+        async function adicionarUsuario() {
+            const username = document.getElementById('novoUsername').value, 
+                  password = document.getElementById('novaSenha').value, 
+                  role = document.getElementById('novoRole').value, 
+                  name = document.getElementById('novoNome').value;
+            if (!username || !password) { alert('Usuário e senha são obrigatórios'); return; }
+            const response = await fetch('/api/config/users', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ username, password, role, name }) 
+            });
+            const data = await response.json();
+            if (data.success) { 
+                alert('Usuário adicionado!'); 
+                document.getElementById('novoUsername').value = ''; 
+                document.getElementById('novaSenha').value = ''; 
+                document.getElementById('novoNome').value = ''; 
+                carregarConfig(); 
+            } else alert(data.error || 'Erro ao adicionar usuário');
+        }
+
+        async function removerUsuario(username) { 
+            if (confirm(`Remover ${username}?`)) { 
+                const response = await fetch(`/api/config/users/${username}`, { method: 'DELETE' }); 
+                const data = await response.json(); 
+                if (data.success) { alert('Usuário removido!'); carregarConfig(); } 
+                else alert(data.error || 'Erro ao remover'); 
+            } 
+        }
+
+        async function adicionarEstacao() {
+            const nome = document.getElementById('novaEstacaoNome').value;
+            const tipo = document.getElementById('novaEstacaoTipo').value;
+            if (!nome) { alert('Nome da estação é obrigatório'); return; }
+            const response = await fetch('/api/config/stations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: nome, type: tipo })
+            });
+            if (response.ok) {
+                alert('Estação adicionada com sucesso!');
+                document.getElementById('novaEstacaoNome').value = '';
+                carregarEstacoes();
+            } else {
+                alert('Erro ao adicionar estação');
+            }
+        }
+
+        async function salvarEstacao(id) {
+            const nome = document.getElementById(`estacao_nome_${id}`).value;
+            const tipo = document.getElementById(`estacao_tipo_${id}`).value;
+            const status = document.getElementById(`estacao_status_${id}`).value === 'true';
+            const response = await fetch(`/api/config/stations/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: nome, type: tipo, active: status })
+            });
+            if (response.ok) {
+                alert('Estação atualizada com sucesso!');
+                carregarEstacoes();
+            } else {
+                alert('Erro ao atualizar estação');
+            }
+        }
+
+        async function removerEstacao(id) {
+            if (confirm('Tem certeza que deseja remover esta estação?')) {
+                const response = await fetch(`/api/config/stations/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Estação removida com sucesso!');
+                    carregarEstacoes();
+                } else {
+                    alert(result.error || 'Erro ao remover estação');
+                }
+            }
+        }
+
+        async function backupDados() {
+            const response = await fetch('/api/incidencias');
+            const incidencias = await response.json();
+            const dataStr = JSON.stringify(incidencias, null, 2);
+            const blob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); 
+            a.href = url; 
+            a.download = `backup_incidencias_${new Date().toISOString().slice(0,19)}.json`; 
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('Backup gerado com sucesso!');
+        }
+
+        async function restaurarDados() {
+            const input = document.createElement('input'); 
+            input.type = 'file'; 
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                const text = await file.text();
+                const incidencias = JSON.parse(text);
+                const response = await fetch('/api/incidencias', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(incidencias) 
+                });
+                if (response.ok) { alert('Dados restaurados com sucesso!'); window.location.reload(); } 
+                else { alert('Erro ao restaurar dados'); }
+            };
+            input.click();
+        }
+
+        function mostrarPainel(painel) {
+    document.querySelectorAll('.config-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`painel-${painel}`).classList.add('active');
+    
+    document.querySelectorAll('.config-tab').forEach((tab, idx) => {
+        const paineis = ['usuarios', 'emails', 'estacoes', 'smtp', 'fuso', 'backup'];
+        tab.classList.toggle('active', paineis[idx] === painel);
+    });
+}
+
+        async function logout() { 
+            await fetch('/api/logout', { method: 'POST' }); 
+            window.location.href = '/login'; 
+        }
+
+        checkAuth();
+        carregarConfigFuso();
+    </script>
+</body>
+</html>

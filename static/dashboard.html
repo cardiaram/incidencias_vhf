@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistema VHF</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .filtro-periodo {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 15px;
+        }
+        .filtro-periodo .form-group {
+            margin-bottom: 0;
+            flex: 1;
+            min-width: 150px;
+        }
+        .filtro-periodo label {
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+        .btn-filtro {
+            padding: 10px 20px;
+            background: var(--gradient);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            height: 42px;
+        }
+        .btn-limpar {
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            height: 42px;
+        }
+        .periodo-info {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+        }
+        @media (max-width: 768px) {
+            .filtro-periodo {
+                flex-direction: column;
+            }
+            .filtro-periodo .form-group {
+                width: 100%;
+            }
+            .periodo-info {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'">
+                <h1>📡 VHF Incidentes</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info"><span>👤</span><span id="username"></span></div>
+                <button class="btn-logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab active">📊 Dashboard</a>
+            <a href="/incidencias/ativas" class="nav-tab">🟡 Incidentes Ativos</a>
+            <a href="/incidencias/fechadas" class="nav-tab">✅ Incidentes Fechados</a>
+            <a href="/incidencia/nova" class="nav-tab">➕ Novo Incidente</a>
+            <a href="/relatorios" class="nav-tab">📈 Relatórios</a>
+            <a href="/configuracoes" class="nav-tab">⚙️ Configurações</a>
+        </div>
+
+        <!-- Filtro de período -->
+        <div class="filtro-periodo">
+            <div class="form-group">
+                <label>📅 Data Início</label>
+                <input type="date" id="dataInicio">
+            </div>
+            <div class="form-group">
+                <label>📅 Data Fim</label>
+                <input type="date" id="dataFim">
+            </div>
+            <button class="btn-filtro" onclick="aplicarFiltro()">📊 Aplicar Filtro</button>
+            <button class="btn-limpar" onclick="limparFiltro()">🔄 Ver Mês Atual</button>
+            <div class="periodo-info" id="periodoInfo"></div>
+        </div>
+
+        <div class="estacoes-grid">
+            <h3>📡 Estado das Estações Remotas</h3>
+            <div class="estacoes-botoes" id="estacoesBotoes">
+                <div style="text-align:center; width:100%;">Carregando...</div>
+            </div>
+        </div>
+
+        <div class="resumo-cards">
+            <div class="resumo-card"><div class="numero" id="totalIncidentes">0</div><div class="label">Total de Incidentes</div></div>
+            <div class="resumo-card"><div class="numero" id="incidentesAtivos">0</div><div class="label">Incidentes Ativos</div></div>
+            <div class="resumo-card"><div class="numero" id="incidentesAlta">0</div><div class="label">Prioridade ALTA</div></div>
+            <div class="resumo-card"><div class="numero" id="incidentesBaixa">0</div><div class="label">Prioridade BAIXA</div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span>📋 Incidentes Recentes</span><a href="/incidencias/ativas" class="btn-outline" style="padding:5px 12px; font-size:0.8rem; text-decoration:none;">Ver todos</a></div>
+            <div class="card-body">
+                <table class="incidentes-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Estação</th>
+                            <th>Classificação</th>
+                            <th>Data</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentesList">
+                        <td><td colspan="6" style="text-align:center">Carregando...</td</tr
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grafico-container"><h3>📊 Incidentes por Estação</h3><div class="grafico-barras" id="graficoEstacoes"></div></div>
+    </div>
+
+    <script src="/static/utils.js"></script>
+    <script src="/static/role_manager.js"></script>
+    <script>
+        let incidencias = [];
+        let incidenciasFiltradas = [];
+        let dataInicioFiltro = '';
+        let dataFimFiltro = '';
+
+        function obterPrimeiroDiaMes() {
+            const hoje = new Date();
+            return new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        }
+
+        function obterUltimoDiaMes() {
+            const hoje = new Date();
+            return new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+        }
+
+        function formatarData(date) {
+            const ano = date.getFullYear();
+            const mes = String(date.getMonth() + 1).padStart(2, '0');
+            const dia = String(date.getDate()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}`;
+        }
+
+        function definirDatasPadrao() {
+            const primeiroDia = obterPrimeiroDiaMes();
+            const ultimoDia = obterUltimoDiaMes();
+            dataInicioFiltro = formatarData(primeiroDia);
+            dataFimFiltro = formatarData(ultimoDia);
+            
+            document.getElementById('dataInicio').value = dataInicioFiltro;
+            document.getElementById('dataFim').value = dataFimFiltro;
+            
+            const mesNome = primeiroDia.toLocaleString('pt-PT', { month: 'long' });
+            const ano = primeiroDia.getFullYear();
+            document.getElementById('periodoInfo').innerHTML = `📅 Mostrando incidentes de ${mesNome} ${ano}`;
+        }
+
+        function aplicarFiltro() {
+            dataInicioFiltro = document.getElementById('dataInicio').value;
+            dataFimFiltro = document.getElementById('dataFim').value;
+            
+            if (!dataInicioFiltro || !dataFimFiltro) {
+                alert('Selecione as datas de início e fim');
+                return;
+            }
+            
+            document.getElementById('periodoInfo').innerHTML = `📅 Período selecionado: ${dataInicioFiltro} a ${dataFimFiltro}`;
+            filtrarIncidencias();
+        }
+
+        function limparFiltro() {
+            definirDatasPadrao();
+            filtrarIncidencias();
+        }
+
+        function filtrarIncidencias() {
+            incidenciasFiltradas = incidencias.filter(inc => {
+                const dataInc = inc.fechaDeteccion?.split('T')[0] || '';
+                return dataInc >= dataInicioFiltro && dataInc <= dataFimFiltro;
+            });
+            
+            atualizarResumo();
+            atualizarRecentes();
+            atualizarGrafico();
+            carregarEstadoEstacoes();
+        }
+
+        function isAlta(inc) {
+            const valor = inc.clasificacao || inc.classificacao || '';
+            return valor === 'Crítica' || valor === 'Alta' || valor === 'ALTA' || valor === 'critica' || valor === 'alta';
+        }
+
+        async function checkAuth() {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            if (!data.authenticated) {
+                window.location.href = '/login';
+            } else {
+                document.getElementById('username').textContent = data.username;
+                await carregarDados();
+            }
+        }
+
+        async function carregarDados() {
+            const response = await fetch('/api/incidencias');
+            incidencias = await response.json();
+            definirDatasPadrao();
+            filtrarIncidencias();
+        }
+
+        function atualizarResumo() {
+            const total = incidenciasFiltradas.length;
+            const ativos = incidenciasFiltradas.filter(i => i.estado !== 'Cerrada').length;
+            const alta = incidenciasFiltradas.filter(i => isAlta(i)).length;
+            const baixa = total - alta;
+            
+            document.getElementById('totalIncidentes').textContent = total;
+            document.getElementById('incidentesAtivos').textContent = ativos;
+            document.getElementById('incidentesAlta').textContent = alta;
+            document.getElementById('incidentesBaixa').textContent = baixa;
+        }
+
+        function atualizarRecentes() {
+            const recentes = [...incidenciasFiltradas].sort((a, b) => b.id - a.id).slice(0, 10);
+            const tbody = document.getElementById('recentesList');
+            
+            if (recentes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Nenhum incidente no período</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            for (const inc of recentes) {
+                const classificacaoTexto = isAlta(inc) ? 'ALTA' : 'BAIXA';
+                const classeBadge = isAlta(inc) ? 'badge-alta' : 'badge-baixa';
+                const status = inc.estado !== 'Cerrada' ? 'ATIVO' : 'FECHADO';
+                const statusBadge = inc.estado !== 'Cerrada' ? 'badge-ativa' : 'badge-fechada';
+                const dataFormatada = (inc.fechaDeteccion || '').split('T')[0] || '-';
+                
+                html += `
+                    <tr>
+                        <td>#${inc.id}</td>
+                        <td>${inc.estacion || '-'}</td>
+                        <td><span class="badge ${classeBadge}">${classificacaoTexto}</span></td>
+                        <td>${dataFormatada}</td>
+                        <td><span class="badge ${statusBadge}">${status}</span></td>
+                        <td><button class="btn-outline" style="padding:4px 10px;font-size:0.75rem;" onclick="editar(${inc.id})">Editar</button></td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = html;
+        }
+
+        function atualizarGrafico() {
+            const estacoes = {};
+            incidenciasFiltradas.forEach(inc => {
+                const est = inc.estacion || 'Desconhecida';
+                estacoes[est] = (estacoes[est] || 0) + 1;
+            });
+            
+            const container = document.getElementById('graficoEstacoes');
+            const maxValue = Math.max(...Object.values(estacoes), 1);
+            
+            if (Object.keys(estacoes).length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#999;">Nenhum incidente registrado</p>';
+            } else {
+                container.innerHTML = Object.entries(estacoes).map(([est, count]) => `
+                    <div class="barra">
+                        <div class="barra-fill" style="height: ${(count / maxValue) * 100}px"></div>
+                        <div class="barra-label">${(est || '?').split('-')[0].trim()}<br>(${count})</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function carregarEstadoEstacoes() {
+            try {
+                const response = await fetch('/api/config/stations');
+                if (!response.ok) throw new Error('Erro ao carregar estações');
+                const todasEstacoes = await response.json();
+                const estacoesAtivas = todasEstacoes.filter(e => e.active === true);
+                
+                console.log('Estações ativas:', estacoesAtivas);
+                
+                const incidentesAtivos = incidenciasFiltradas.filter(i => i.estado !== 'Cerrada');
+                const incidentesPorEstacao = {};
+                incidentesAtivos.forEach(inc => {
+                    const est = inc.estacion || 'Desconhecida';
+                    incidentesPorEstacao[est] = (incidentesPorEstacao[est] || 0) + 1;
+                });
+                
+                console.log('Incidentes por estação:', incidentesPorEstacao);
+                
+                const container = document.getElementById('estacoesBotoes');
+                
+                if (estacoesAtivas.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:#999;">Nenhuma estação configurada</p>';
+                    return;
+                }
+                
+                container.innerHTML = estacoesAtivas.map(est => {
+                    const count = incidentesPorEstacao[est.name] || 0;
+                    const statusClass = count > 0 ? 'vermelho' : 'verde';
+                    const statusText = count > 0 ? `${count} incidente(s)` : 'OK';
+                    return `<button class="estacao-btn-status ${statusClass}" onclick="verIncidentesEstacao('${est.name.replace(/'/g, "\\'")}')"><span>📡 ${est.name.split('-')[0].trim()}</span><span class="badge">${statusText}</span></button>`;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar estações:', error);
+                document.getElementById('estacoesBotoes').innerHTML = '<p style="text-align:center; color:#999;">Erro ao carregar estações</p>';
+            }
+        }
+
+        function verIncidentesEstacao(estacao) {
+            window.location.href = `/incidencias/ativas?estacao=${encodeURIComponent(estacao)}`;
+        }
+
+        function editar(id) {
+            window.location.href = `/incidencia/editar/${id}`;
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        checkAuth();
+    </script>
+</body>
+</html>

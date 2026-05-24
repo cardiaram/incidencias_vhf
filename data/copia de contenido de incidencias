@@ -1,0 +1,382 @@
+ {
+    "acessos": [
+      {
+        "descricao": "precisamos entrada a CCO",
+        "duracao": "",
+        "fecha": "2026-05-20",
+        "horaEntrada": "18:49",
+        "horaSalida": ""
+      }
+    ],
+    "clasificacion": "Menor",
+    "classificacao": "Menor",
+    "descricao": "prueba de terminado con funciones",
+    "estacion": "Fogo - São Filipe",
+    "estado": "Cerrada",
+    "fechaCierre": "2026-05-20T22:26:25.144Z",
+    "fechaCreacion": "2026-05-20T19:44:15.727Z",
+    "fechaDeteccion": "2026-05-20T19:43",
+    "horaContactoINCO": "2026-05-20T18:44",
+    "id": 1779306255727,
+    "operadorLACV": "operador 1",
+    "presencial": {
+      "duracao": "",
+      "llegadaInstalacion": "2026-05-20T20:00",
+      "resultado": "Provisional",
+      "salidaInstalacion": "2026-05-20T21:10",
+      "trabajoFin": "2026-05-20T21:00"
+    },
+    "remoto": {
+      "duracao": "2m",
+      "fim": "2026-05-20T18:48",
+      "inicio": "2026-05-20T18:46",
+      "obs": "Se precisa de acceso, a incidencia e de hardware",
+      "resuelta": "No"
+    },
+    "requerAcesso": true,
+    "sintomas": [
+      "Ruído/interferência"
+    ],
+    "solucionProvincial": {
+      "cobertura": "Parcial",
+      "fechaDefinitiva": "2026-05-20"
+    },
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": []
+  },
+  {
+    "acessos": [],
+    "clasificacion": "Menor",
+    "classificacao": "Crítica",
+    "descricao": "ruido de fondo y fallos intermitentes",
+    "estacion": "Boa Vista - Aristides Pereira",
+    "estado": "Cerrada",
+    "fechaCierre": "2026-05-20T21:14:57.314Z",
+    "fechaCreacion": "2026-05-20T21:06:19.258Z",
+    "fechaDeteccion": "2026-05-20T21:05",
+    "horaContactoINCO": "2026-05-20T20:06",
+    "id": 1779311179258,
+    "operadorLACV": "joao silva",
+    "presencial": {},
+    "remoto": {
+      "duracao": "1m",
+      "fim": "2026-05-20T21:14",
+      "inicio": "2026-05-20T21:13",
+      "obs": "solo era una falla da internet",
+      "resuelta": "Si"
+    },
+    "sintomas": [
+      "Ruído/interferência",
+      "Falha conexão internet"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": []
+  },
+  {
+    "acessos": [],
+    "clasificacion": "Menor",
+    "classificacao": "Crítica",
+    "descricao": "estacao remota com icono de fora de servicio",
+    "estacion": "São Vicente - Cesária Évora",
+    "estado": "Cerrada",
+    "fechaCierre": "2026-05-20T22:26:13.134Z",
+    "fechaCreacion": "2026-05-20T21:35:01.274Z",
+    "fechaDeteccion": "2026-05-20T21:33",
+    "horaContactoINCO": "2026-05-20T20:20",
+    "id": 1779312901274,
+    "operadorLACV": "Administrador",
+    "presencial": {},
+    "remoto": {},
+    "sintomas": [
+      "Equipamento não responde"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": []
+  },
+  {
+    "acessos": [
+      {
+        "descricao": "revisar hardware de estacion remota ",
+        "duracao": "",
+        "fecha": "",
+        "horaEntrada": "",
+        "horaSalida": ""
+      }
+    ],
+    "clasificacion": "Menor",
+    "classificacao": "Menor",
+    "descricao": "solo pruebas",
+    "estacion": "CCO Praia - Posto Operador",
+    "estado": "Cerrada",
+    "fechaCierre": "2026-05-20T22:25:37.164Z",
+    "fechaCreacion": "2026-05-20T22:18:52.805Z",
+    "fechaDeteccion": "2026-05-20T22:18",
+    "horaContactoINCO": "2026-05-20T21:18",
+    "id": 1779315532805,
+    "operadorLACV": "Administrador",
+    "presencial": {
+      "duracao": "",
+      "llegadaInstalacion": "2026-05-20T22:25",
+      "resultado": "Resuelta",
+      "salidaInstalacion": "2026-05-20T22:25",
+      "trabajoFin": "2026-05-20T22:25",
+      "trabajoInicio": "2026-05-20T22:25"
+    },
+    "remoto": {
+      "duracao": "1m",
+      "fim": "2026-05-20T22:22",
+      "inicio": "2026-05-20T22:21",
+      "obs": "solo pruebas ",
+      "resuelta": "No"
+    },
+    "requerAcesso": true,
+    "sintomas": [
+      "Ruído/interferência"
+    ],
+    "tecnicoINCO": "Marco Furtado",
+    "viagens": [
+      {
+        "dataIda": "2026-05-21",
+        "dataVolta": "2026-05-21",
+        "medio": "avion",
+        "obs": "se resuelve el mismo dia"
+      }
+    ]
+  },
+  {
+    "acessos": [],
+    "clasificacion": "Menor",
+    "classificacao": "Crítica",
+    "descricao": "solo pruebas ",
+    "estacion": "São Nicolau - Preguiça",
+    "estado": "Cerrada",
+    "fechaCierre": "2026-05-20T22:25:59.856Z",
+    "fechaCreacion": "2026-05-20T22:21:12.817Z",
+    "fechaDeteccion": "2026-05-20T22:20",
+    "horaContactoINCO": "2026-05-20T21:21",
+    "id": 1779315672817,
+    "operadorLACV": "Administrador",
+    "presencial": {},
+    "remoto": {},
+    "sintomas": [
+      "Baixa qualidade áudio"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": []
+  },
+  {
+    "acessos": [],
+    "clasificacion": "Menor",
+    "classificacao": "Crítica",
+    "descricao": "",
+    "estacion": "São Vicente - Cesária Évora",
+    "estado": "Cerrada",
+    "fechaCierre": "2026-05-20T22:29:19.506Z",
+    "fechaCreacion": "2026-05-20T22:27:20.483Z",
+    "fechaDeteccion": "2026-05-20T22:26",
+    "horaContactoINCO": "2026-05-20T21:27",
+    "id": 1779316040483,
+    "operadorLACV": "Administrador",
+    "presencial": {},
+    "remoto": {
+      "duracao": "1m",
+      "fim": "2026-05-20T22:28",
+      "inicio": "2026-05-20T22:27",
+      "resuelta": "Si"
+    },
+    "requerAcesso": false,
+    "sintomas": [
+      "Baixa qualidade áudio"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": []
+  },
+  {
+    "acessos": [
+      {
+        "descricao": "aceso al cco y al cuarto del router",
+        "duracao": "",
+        "fecha": "2026-05-21",
+        "horaEntrada": "10:32",
+        "horaSalida": ""
+      }
+    ],
+    "classificacao": "Menor",
+    "descricao": "",
+    "estacion": "Praia - Estação Remota (Aeroporto Nelson Mandela)",
+    "estado": "Cerrada",
+    "fechaCierre": "2026-05-21T11:36:17.258Z",
+    "fechaCreacion": "2026-05-21T11:30:23.472Z",
+    "fechaDeteccion": "2026-05-21T11:28",
+    "horaContactoINCO": "2026-05-21T10:29",
+    "id": 1779363023472,
+    "operadorLACV": "Administrador",
+    "presencial": {
+      "duracao": "",
+      "llegadaInstalacion": "2026-05-21T11:34",
+      "resultado": "Resuelta",
+      "salidaInstalacion": "2026-05-21T11:35",
+      "trabajoFin": "2026-05-21T11:35",
+      "trabajoInicio": "2026-05-21T11:35"
+    },
+    "remoto": {
+      "duracao": "1m",
+      "fim": "2026-05-21T11:31",
+      "inicio": "2026-05-21T11:30",
+      "obs": "es un problema de hadware",
+      "resuelta": "No"
+    },
+    "requerAcesso": true,
+    "sintomas": [
+      "Falha transmissão"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": [
+      {
+        "dataIda": "2026-05-21",
+        "dataVolta": "2026-05-23",
+        "medio": "",
+        "obs": ""
+      }
+    ]
+  },
+  {
+    "acessos": [
+      {
+        "concessao": "",
+        "solicitacao": ""
+      }
+    ],
+    "classificacao": "Menor",
+    "descricao": "ruido en la recepcion",
+    "estacion": "CCO Praia - Posto Operador",
+    "estado": "Ativa",
+    "fechaCreacion": "2026-05-22T12:34:30.577Z",
+    "fechaDeteccion": "2026-05-22T12:33",
+    "horaContactoINCO": "2026-05-22T11:34",
+    "id": 1779453270577,
+    "operadorLACV": "Administrador",
+    "presencial": {
+      "resultado": ""
+    },
+    "remoto": {
+      "duracao": "",
+      "fim": "2026-05-22T17:10",
+      "inicio": "2026-05-22T17:10",
+      "resuelta": "No"
+    },
+    "sintomas": [
+      "Ruído/interferência"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": [
+      {
+        "confirmacao": "",
+        "fechaIda": "",
+        "fechaVuelta": "",
+        "medio": "Avião",
+        "obs": "",
+        "solicitacao": ""
+      }
+    ]
+  },
+  {
+    "acessos": [
+      {
+        "concessao": "",
+        "documentos": [],
+        "horaEstimada": "2026-05-22T15:00",
+        "solicitacao": "",
+        "tecnicos": "Marco Furtado,Carlos Diaz"
+      }
+    ],
+    "classificacao": "Menor",
+    "descricao": "tra tra tra",
+    "estacion": "CCO Praia - Posto Operador",
+    "estado": "Ativa",
+    "fechaCreacion": "2026-05-22T13:39:46.957Z",
+    "fechaDeteccion": "2026-05-22T13:39",
+    "horaContactoINCO": "2026-05-22T13:39",
+    "id": 1779457186957,
+    "operadorLACV": "Administrador",
+    "presencial": {
+      "resultado": "Provisional"
+    },
+    "remoto": {
+      "fim": "2026-05-22T13:59",
+      "inicio": "2026-05-22T13:59",
+      "resuelta": "No"
+    },
+    "sintomas": [
+      "Perda total comunicação"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": [
+      {
+        "confirmacao": "",
+        "fechaIda": "2026-05-23",
+        "fechaVuelta": "2026-05-24",
+        "hotelDias": 1,
+        "maletas": "5",
+        "medio": "Avião",
+        "obs": "",
+        "solicitacao": "",
+        "tecnicos": "Carlos Diaz,Victor Argibay"
+      }
+    ]
+  },
+  {
+    "acessos": [
+      {
+        "concessao": "2026-05-23T10:33",
+        "emailEnviado": true,
+        "horaEstimada": "",
+        "solicitacao": "2026-05-23T09:36",
+        "tecnicos": "Carlos Diaz"
+      }
+    ],
+    "classificacao": "Crítica",
+    "descricao": "no se ve en el panel ",
+    "estacion": "Fogo - São Filipe",
+    "estado": "Ativa",
+    "fechaCreacion": "2026-05-22T17:17:25.385Z",
+    "fechaDeteccion": "2026-05-22T17:16",
+    "horaContactoINCO": "2026-05-22T17:17",
+    "id": 1779470245385,
+    "operadorLACV": "Administrador",
+    "presencial": {},
+    "remoto": {
+      "duracao": "",
+      "fim": "2026-05-23T09:33",
+      "inicio": "2026-05-23T09:33",
+      "resuelta": "No"
+    },
+    "sintomas": [
+      "Perda total comunicação"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": []
+  },
+  {
+    "acessos": [],
+    "classificacao": "Crítica",
+    "descricao": "fallo en recepcion",
+    "estacion": "Sal - Amílcar Cabral",
+    "estado": "Ativa",
+    "fechaCreacion": "2026-05-23T10:48:52.666Z",
+    "fechaDeteccion": "2026-05-23T10:48",
+    "horaContactoINCO": "2026-05-23T10:48",
+    "id": 1779533332666,
+    "operadorLACV": "Administrador",
+    "presencial": {},
+    "remoto": {
+      "inicio": "2026-05-23T21:49",
+      "fim": "2026-05-23T09:50",
+      "duracao": ""
+    },
+    "sintomas": [
+      "Falha recepção"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": []
+  }

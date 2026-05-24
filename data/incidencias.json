@@ -1,0 +1,21 @@
+[
+  {
+    "acessos": [],
+    "classificacao": "Crítica",
+    "descricao": "",
+    "estacion": "CCO Praia - Posto Operador",
+    "estado": "Ativa",
+    "fechaCreacion": "2026-05-23T12:04:12.139Z",
+    "fechaDeteccion": "2026-05-23T12:03",
+    "horaContactoINCO": "2026-05-23T11:04",
+    "id": 1779537852139,
+    "operadorLACV": "Administrador",
+    "presencial": {},
+    "remoto": {},
+    "sintomas": [
+      "Perda total comunicação"
+    ],
+    "tecnicoINCO": "Carlos Diaz",
+    "viagens": []
+  }
+]

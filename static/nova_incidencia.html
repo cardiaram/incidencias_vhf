@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novo Incidente - Sistema VHF</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'">
+                <h1>📡 VHF Incidentes</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info"><span>👤</span><span id="username"></span></div>
+                <button class="btn-logout" onclick="logout()">Sair</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">📊 Dashboard</a>
+            <a href="/incidencias/ativas" class="nav-tab">🟡 Incidentes Ativos</a>
+            <a href="/incidencias/fechadas" class="nav-tab">✅ Incidentes Fechados</a>
+            <a href="/incidencia/nova" class="nav-tab active">➕ Novo Incidente</a>
+            <a href="/relatorios" class="nav-tab">📈 Relatórios</a>
+            <a href="/configuracoes" class="nav-tab">⚙️ Configurações</a>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span>📝 Novo Incidente</span>
+                <span style="font-size:0.8rem;">Todos os horários em UTC</span>
+            </div>
+            <div class="card-body" id="formContainer">
+                <!-- Formulário será carregado aqui -->
+                <p style="text-align:center; padding:20px;">Carregando formulário...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/utils.js"></script>
+    <script src="/static/role_manager.js"></script>
+    <script>
+        let currentIncidencia = null;
+        let tecnicosINCO = ["Carlos Diaz", "Marco Furtado", "Outro"];
+        let estacoesList = [];
+        let usuarioAtual = { username: '', name: '', role: '' };
+
+        // ============================================================
+        // FUNÇÕES AUXILIARES
+        // ============================================================
+
+        function escapeHtml(str) { 
+            if (!str) return ''; 
+            return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); 
+        }
+
+        function obterDataHoraAtualUTC() {
+            const agora = new Date();
+            const ano = agora.getUTCFullYear();
+            const mes = String(agora.getUTCMonth() + 1).padStart(2, '0');
+            const dia = String(agora.getUTCDate()).padStart(2, '0');
+            const horas = String(agora.getUTCHours()).padStart(2, '0');
+            const minutos = String(agora.getUTCMinutes()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}T${horas}:${minutos}`;
+        }
+
+        function criarIncidenteVazio() {
+            const nomeOperador = usuarioAtual.name || usuarioAtual.username;
+            return {
+                operadorLACV: nomeOperador,
+                fechaDeteccion: obterDataHoraAtualUTC(),
+                estacion: '',
+                sintomas: [],
+                descricao: '',
+                classificacao: 'Menor',  // Padrão BAIXA
+                tecnicoINCO: '',
+                horaContactoINCO: '',
+                estado: 'Ativa',
+                remoto: {},
+                presencial: {},
+                acessos: [],
+                viagens: []
+            };
+        }
+
+        // ============================================================
+        // AUTENTICAÇÃO E CARREGAMENTO
+        // ============================================================
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/check-auth');
+                const data = await response.json();
+                if (!data.authenticated) {
+                    window.location.href = '/login';
+                } else {
+                    document.getElementById('username').textContent = data.username;
+                    await carregarUsuarioAtual();
+                    await carregarEstacoes();
+                    currentIncidencia = criarIncidenteVazio();
+                    renderFormulario();
+                }
+            } catch (error) {
+                console.error('Erro no checkAuth:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        async function carregarUsuarioAtual() {
+            try {
+                const response = await fetch('/api/user-role');
+                const data = await response.json();
+                usuarioAtual = data;
+            } catch (error) {
+                console.error('Erro ao carregar usuário:', error);
+            }
+        }
+
+        async function carregarEstacoes() {
+            try {
+                const response = await fetch('/api/config/stations');
+                if (response.ok) {
+                    const todasEstacoes = await response.json();
+                    estacoesList = todasEstacoes.filter(e => e.active);
+                    console.log('Estações carregadas:', estacoesList.length);
+                } else {
+                    console.error('Erro ao carregar estações:', response.status);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar estações:', error);
+            }
+        }
+
+        // ============================================================
+        // FUNÇÕES DE ATUALIZAÇÃO
+        // ============================================================
+
+        function atualizarOperador() { 
+            const input = document.getElementById('operadorLACV'); 
+            if (input) currentIncidencia.operadorLACV = input.value; 
+        }
+
+        function atualizarDescricao() { 
+            const textarea = document.getElementById('descricao'); 
+            if (textarea) currentIncidencia.descricao = textarea.value; 
+        }
+
+        function atualizarHoraContacto() { 
+            const data = document.getElementById('horaContactoINCO_data')?.value || '';
+            const hora = document.getElementById('horaContactoINCO_hora')?.value || '';
+            currentIncidencia.horaContactoINCO = (data && hora) ? `${data}T${hora}` : '';
+        }
+
+        function atualizarTecnicoINCO() { 
+            const select = document.getElementById('tecnicoINCOSelect'); 
+            const outro = document.getElementById('tecnicoINCOOutro'); 
+            if (select.value === 'Outro') { 
+                if (outro) currentIncidencia.tecnicoINCO = outro.value; 
+            } else { 
+                currentIncidencia.tecnicoINCO = select.value; 
+            } 
+        }
+
+        function atualizarClassificacao(valor) {
+            currentIncidencia.classificacao = valor;
+            document.querySelectorAll('.class-btn').forEach(btn => {
+                const btnClass = btn.getAttribute('data-class');
+                if (btnClass === valor) {
+                    btn.style.background = btnClass === 'Crítica' ? '#dc3545' : '#28a745';
+                    btn.style.color = 'white';
+                } else {
+                    btn.style.background = 'transparent';
+                    btn.style.color = '#667eea';
+                }
+            });
+        }
+
+        // ============================================================
+        // RENDERIZAÇÃO DO FORMULÁRIO
+        // ============================================================
+
+        function renderFormulario() {
+            const container = document.getElementById('formContainer');
+            if (!container) return;
+            
+            const dataAtual = currentIncidencia.fechaDeteccion || obterDataHoraAtualUTC();
+            const dataMostrar = dataAtual.split('T')[0];
+            const horaMostrar = dataAtual.split('T')[1];
+            
+            const sintomasLista = [
+                'Perda total comunicação',
+                'Ruído/interferência',
+                'Baixa qualidade áudio',
+                'Falha transmissão',
+                'Falha recepção',
+                'Falha conexão internet',
+                'Problema elétrico',
+                'Equipamento não responde',
+                'Outro'
+            ];
+
+            let html = `
+                <div class="form-group">
+                    <label>👤 Operador LACV (nome completo) *</label>
+                    <input type="text" id="operadorLACV" value="${escapeHtml(currentIncidencia.operadorLACV)}" readonly style="background:var(--bg-primary); cursor:not-allowed;">
+                    <small style="color:#666; display:block; margin-top:5px;">Preenchido automaticamente com o nome do utilizador logado</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>📅 Data e hora detecção (UTC) - AUTOMÁTICA NÃO EDITÁVEL</label>
+                    <div style="background:var(--bg-primary); padding:12px; border-radius:12px; border-left:3px solid #667eea;">
+                        📅 ${dataMostrar} &nbsp; ⏰ ${horaMostrar} UTC
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>📍 Estação afetada *</label>
+                    <div class="form-row" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">`;
+            
+            if (estacoesList.length === 0) {
+                html += '<p style="color:#999;">Carregando estações...</p>';
+            } else {
+                estacoesList.forEach(est => {
+                    html += `<button type="button" class="btn-outline estacao-btn" style="padding:10px; ${currentIncidencia.estacion === est.name ? 'background:#667eea;color:white;' : ''}" data-estacao="${est.name.replace(/"/g, '&quot;')}">${est.name}</button>`;
+                });
+            }
+            
+            html += `</div></div>
+                <div class="form-group">
+                    <label>⚠️ Sintomas detectados *</label>
+                    <div class="form-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">`;
+            
+            sintomasLista.forEach(sint => {
+                html += `<button type="button" class="btn-outline sintoma-btn" style="padding:8px; ${currentIncidencia.sintomas?.includes(sint) ? 'background:#667eea;color:white;' : ''}" data-sintoma="${sint}">${sint}</button>`;
+            });
+            
+            html += `</div></div>
+                <div class="form-group">
+                    <label>📝 Descrição detalhada</label>
+                    <textarea id="descricao" rows="4" placeholder="Descreva o incidente em detalhes..." oninput="atualizarDescricao()">${escapeHtml(currentIncidencia.descricao)}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>⚡ Classificação *</label>
+                    <div class="form-row">
+                        <button type="button" class="btn-outline class-btn ${currentIncidencia.classificacao === 'Crítica' ? 'selecionado' : ''}" data-class="Crítica" style="${currentIncidencia.classificacao === 'Crítica' ? 'background:#dc3545;color:white;' : ''}">🔴 ALTA</button>
+                        <button type="button" class="btn-outline class-btn ${currentIncidencia.classificacao === 'Menor' ? 'selecionado' : ''}" data-class="Menor" style="${currentIncidencia.classificacao === 'Menor' ? 'background:#28a745;color:white;' : ''}">🟢 BAIXA</button>
+                    </div>
+                    <small style="color:#666; display:block; margin-top:5px;">Por padrão, a classificação é BAIXA. Selecione ALTA apenas se for uma emergência.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>📞 Técnico INCO contatado</label>
+                    <select id="tecnicoINCOSelect" onchange="atualizarTecnicoINCO()">
+                        <option value="">-- Selecionar --</option>
+                        ${tecnicosINCO.map(t => `<option value="${t}" ${currentIncidencia.tecnicoINCO === t ? 'selected' : ''}>${t}</option>`).join('')}
+                    </select>
+                    <input type="text" id="tecnicoINCOOutro" placeholder="Digitar nome" style="margin-top:8px; display:${currentIncidencia.tecnicoINCO && !tecnicosINCO.includes(currentIncidencia.tecnicoINCO) ? 'block' : 'none'}" value="${escapeHtml(currentIncidencia.tecnicoINCO || '')}" oninput="atualizarTecnicoINCO()">
+                    <div class="form-row-datetime" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top:8px;">
+                        <div class="form-group">
+                            <label>📅 Data Contacto</label>
+                            <input type="date" id="horaContactoINCO_data" value="${(currentIncidencia.horaContactoINCO || '').split('T')[0] || ''}" data-auto="true" onchange="atualizarHoraContacto()">
+                        </div>
+                        <div class="form-group">
+                            <label>⏰ Hora Contacto (UTC)</label>
+                            <input type="time" id="horaContactoINCO_hora" value="${(currentIncidencia.horaContactoINCO || '').split('T')[1] || ''}" step="60" data-auto="true" onchange="atualizarHoraContacto()">
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background:var(--bg-primary); padding:15px; border-radius:12px; margin-top:20px; text-align:center; border-left:3px solid #667eea;">
+                    ℹ️ As informações sobre intervenção remota, presencial, acessos e viagens serão adicionadas posteriormente pelo técnico INCO.
+                </div>
+                
+                <div class="form-row" style="margin-top:30px;">
+                    <button class="btn-primary" onclick="guardarIncidente()" style="flex:1;">✅ Criar Incidente</button>
+                </div>`;
+            
+            container.innerHTML = html;
+            
+            // Event listeners para botões de estação
+            document.querySelectorAll('.estacao-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentIncidencia.estacion = btn.getAttribute('data-estacao');
+                    renderFormulario();
+                });
+            });
+            
+            // Event listeners para botões de sintomas
+            document.querySelectorAll('.sintoma-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const sint = btn.getAttribute('data-sintoma');
+                    if (!currentIncidencia.sintomas.includes(sint)) {
+                        currentIncidencia.sintomas.push(sint);
+                    } else {
+                        currentIncidencia.sintomas = currentIncidencia.sintomas.filter(s => s !== sint);
+                    }
+                    renderFormulario();
+                });
+            });
+            
+            // Event listeners para botões de classificação
+            document.querySelectorAll('.class-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const valor = btn.getAttribute('data-class');
+                    atualizarClassificacao(valor);
+                });
+            });
+            
+            // Inicializar autopreenchimento
+            inicializarAutoPreenchimento();
+        }
+        
+        function inicializarAutoPreenchimento() {
+            document.querySelectorAll('input[type="date"][data-auto="true"]').forEach(input => {
+                input.addEventListener('focus', function() {
+                    if (!this.value) {
+                        const hoje = new Date();
+                        this.value = `${hoje.getUTCFullYear()}-${String(hoje.getUTCMonth() + 1).padStart(2, '0')}-${String(hoje.getUTCDate()).padStart(2, '0')}`;
+                        this.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+            document.querySelectorAll('input[type="time"][data-auto="true"]').forEach(input => {
+                input.addEventListener('focus', function() {
+                    if (!this.value) {
+                        const agora = new Date();
+                        this.value = `${String(agora.getUTCHours()).padStart(2, '0')}:${String(agora.getUTCMinutes()).padStart(2, '0')}`;
+                        this.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+        }
+
+        // ============================================================
+        // GUARDAR INCIDENTE
+        // ============================================================
+
+        async function guardarIncidente() {
+            // Garantir que a classificação está definida
+            if (!currentIncidencia.classificacao) {
+                currentIncidencia.classificacao = 'Menor';
+            }
+            
+            // Validar campos obrigatórios
+            if (!currentIncidencia.operadorLACV) { 
+                alert('Nome do operador LACV é obrigatório'); 
+                return; 
+            }
+            if (!currentIncidencia.estacion) { 
+                alert('Selecione a estação afetada'); 
+                return; 
+            }
+            if (!currentIncidencia.sintomas.length) { 
+                alert('Selecione pelo menos um sintoma'); 
+                return; 
+            }
+            
+            // Recolher dados do formulário
+            currentIncidencia.descricao = document.getElementById('descricao')?.value || '';
+            
+            const selectTec = document.getElementById('tecnicoINCOSelect');
+            const outroTec = document.getElementById('tecnicoINCOOutro');
+            if (selectTec.value === 'Outro') {
+                currentIncidencia.tecnicoINCO = outroTec?.value || '';
+            } else {
+                currentIncidencia.tecnicoINCO = selectTec?.value || '';
+            }
+            
+            // Gerar ID e guardar
+            currentIncidencia.id = Date.now();
+            currentIncidencia.estado = 'Ativa';
+            currentIncidencia.fechaCreacion = new Date().toISOString();
+            
+            console.log('Guardando incidente:', currentIncidencia);
+            
+            // Carregar incidencias existentes e adicionar a nova
+            let incidencias = await (await fetch('/api/incidencias')).json();
+            incidencias.push(currentIncidencia);
+            
+            const response = await fetch('/api/incidencias', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(incidencias) 
+            });
+            
+            if (response.ok) {
+                await fetch('/api/enviar-correo', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ incidencia: currentIncidencia, tipo: 'criacao' }) 
+                });
+                alert(`Incidente #${currentIncidencia.id} criado com sucesso!`);
+                window.location.href = '/';
+            } else {
+                alert('Erro ao criar incidente');
+            }
+        }
+
+        // ============================================================
+        // LOGOUT
+        // ============================================================
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        // Inicializar
+        checkAuth();
+    </script>
+</body>
+</html>

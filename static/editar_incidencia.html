@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Incidente - Sistema VHF</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .secao-card {
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 25px;
+            background: var(--bg-secondary);
+            transition: all 0.2s;
+        }
+        .secao-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .secao-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .secao-header h3 { color: #667eea; margin: 0; }
+        .subsecao {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .subsecao-title { font-weight: 600; margin-bottom: 10px; color: #667eea; }
+        .item-dinamico {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+        }
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #667eea;
+            padding-bottom: 8px;
+        }
+        .tempo-resumo { background: #e8f0fe; border-radius: 12px; padding: 15px; margin-top: 15px; }
+        .tempo-total {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+        .btn-largo { width: 100%; margin-top: 10px; }
+        .documentos-lista { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+        .badge-doc { background: #667eea; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; }
+        .form-row-datetime { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        input[type="date"], input[type="time"], input[type="datetime-local"] {
+            font-family: monospace;
+            padding: 10px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+        .info-auto { font-size: 0.7rem; color: #999; margin-top: 4px; }
+        .info-enviado { background: #e8f0fe; padding: 10px; border-radius: 10px; font-family: monospace; margin-top: 5px; }
+        .tecnicos-selecionados { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .tecnicos-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tecnicos-badge button {
+            background: rgba(255,255,255,0.3);
+            border: none;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .btn-add-tecnico {
+            margin-left: 10px;
+            padding: 5px 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .duracao-auto { background: #e8f0fe; padding: 10px; border-radius: 10px; margin-top: 8px; font-size: 0.85rem; }
+        .btn-atualizar { background: #ffc107; color: #333; }
+        @media (max-width: 768px) { .form-row-datetime { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left"><img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'"><h1>📡 VHF Incidentes</h1></div>
+            <div class="header-right"><div class="user-info"><span>👤</span><span id="username"></span></div><button class="btn-logout" onclick="logout()">Sair</button></div>
+        </div>
+
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">📊 Dashboard</a>
+            <a href="/incidencias/ativas" class="nav-tab">🟡 Incidentes Ativos</a>
+            <a href="/incidencias/fechadas" class="nav-tab">✅ Incidentes Fechados</a>
+            <a href="/incidencia/nova" class="nav-tab">➕ Novo Incidente</a>
+            <a href="/relatorios" class="nav-tab">📈 Relatórios</a>
+            <a href="/configuracoes" class="nav-tab">⚙️ Configurações</a>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span>✏️ Editar Incidente #<span id="incId"></span></span></div>
+            <div class="card-body" id="formContainer">Carregando...</div>
+        </div>
+    </div>
+
+    <script src="/static/utils.js"></script>
+    <script src="/static/role_manager.js"></script>
+    <script>
+        let currentIncidencia = null;
+        let tecnicosINCO = ["Carlos Diaz", "Marco Furtado", "Victor Argibay"];
+        let estacoesList = [];
+
+        const documentosTecnicos = {
+            "Carlos Diaz": ["DNI_Carlos.pdf", "Certificado_Seguranca.pdf"],
+            "Marco Furtado": ["DNI_Marco.pdf", "Certificado_Tecnico.pdf"],
+            "Victor Argibay": ["DNI_Victor.pdf", "Autorizacao_Especial.pdf"]
+        };
+
+        // ============================================================
+        // FUNÇÕES AUXILIARES
+        // ============================================================
+
+        function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+
+        function obterDataAtual() {
+            const agora = new Date();
+            return `${agora.getUTCFullYear()}-${String(agora.getUTCMonth() + 1).padStart(2, '0')}-${String(agora.getUTCDate()).padStart(2, '0')}`;
+        }
+
+        function obterHoraAtual() {
+            const agora = new Date();
+            return `${String(agora.getUTCHours()).padStart(2, '0')}:${String(agora.getUTCMinutes()).padStart(2, '0')}`;
+        }
+
+        function obterDataHoraAtual() {
+            return `${obterDataAtual()}T${obterHoraAtual()}`;
+        }
+
+        function calcularDuracao(inicio, fim) {
+            if (!inicio || !fim) return '';
+            const inicioDate = new Date(inicio);
+            const fimDate = new Date(fim);
+            if (isNaN(inicioDate) || isNaN(fimDate) || fimDate <= inicioDate) return '';
+            const diffMs = fimDate - inicioDate;
+            const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffMinutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            if (diffHoras > 0 && diffMinutos > 0) return `${diffHoras}h ${diffMinutos}m`;
+            if (diffHoras > 0) return `${diffHoras}h`;
+            if (diffMinutos > 0) return `${diffMinutos}m`;
+            return '< 1m';
+        }
+
+        function calcularTempoEntre(dataInicio, dataFim) {
+            if (!dataInicio || !dataFim) return '---';
+            const inicio = new Date(dataInicio);
+            const fim = new Date(dataFim);
+            if (isNaN(inicio) || isNaN(fim) || fim <= inicio) return '---';
+            const diffMs = fim - inicio;
+            const diffHoras = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffMinutos = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            if (diffHoras > 0 && diffMinutos > 0) return `${diffHoras}h ${diffMinutos}m`;
+            if (diffHoras > 0) return `${diffHoras}h`;
+            if (diffMinutos > 0) return `${diffMinutos}m`;
+            return '< 1m';
+        }
+
+        function calcularDiasHotel(dataIda, dataVolta) {
+            if (!dataIda || !dataVolta) return 0;
+            const ida = new Date(dataIda);
+            const volta = new Date(dataVolta);
+            if (isNaN(ida) || isNaN(volta) || volta <= ida) return 0;
+            return Math.ceil((volta - ida) / (1000 * 60 * 60 * 24));
+        }
+
+        function verificarEstacaoPraia(estacao) {
+            const estacoesPraia = ['CCO Praia - Posto Operador', 'Praia - Estação Remota (Aeroporto Nelson Mandela)'];
+            return estacoesPraia.includes(estacao);
+        }
+
+        function formatarDataHoraParaDisplay(dataHora) {
+            if (!dataHora) return '-';
+            const partes = dataHora.split('T');
+            const data = partes[0];
+            const hora = partes[1] ? partes[1].substring(0, 5) : '';
+            return `${data} ${hora}`;
+        }
+
+        // ============================================================
+        // FUNÇÕES DE ATUALIZAÇÃO
+        // ============================================================
+
+        function atualizarRemotoInicio() {
+            const data = document.getElementById('remotoInicio_data')?.value || '';
+            const hora = document.getElementById('remotoInicio_hora')?.value || '';
+            const valor = (data && hora) ? `${data}T${hora}` : '';
+            if (!currentIncidencia.remoto) currentIncidencia.remoto = {};
+            currentIncidencia.remoto.inicio = valor;
+            if (currentIncidencia.remoto.inicio && currentIncidencia.remoto.fim) {
+                currentIncidencia.remoto.duracao = calcularDuracao(currentIncidencia.remoto.inicio, currentIncidencia.remoto.fim);
+            }
+            const span = document.getElementById('remotoDuracaoAuto');
+            if (span) span.textContent = currentIncidencia.remoto.duracao || '---';
+        }
+
+        function atualizarRemotoFim() {
+            const data = document.getElementById('remotoFim_data')?.value || '';
+            const hora = document.getElementById('remotoFim_hora')?.value || '';
+            const valor = (data && hora) ? `${data}T${hora}` : '';
+            if (!currentIncidencia.remoto) currentIncidencia.remoto = {};
+            currentIncidencia.remoto.fim = valor;
+            if (currentIncidencia.remoto.inicio && currentIncidencia.remoto.fim) {
+                currentIncidencia.remoto.duracao = calcularDuracao(currentIncidencia.remoto.inicio, currentIncidencia.remoto.fim);
+            }
+            const span = document.getElementById('remotoDuracaoAuto');
+            if (span) span.textContent = currentIncidencia.remoto.duracao || '---';
+        }
+
+        function atualizarPresencial(campo, valor) {
+            if (!currentIncidencia.presencial) currentIncidencia.presencial = {};
+            currentIncidencia.presencial[campo] = valor;
+            atualizarTodosTemposPresenciais();
+        }
+
+        function atualizarTodosTemposPresenciais() {
+            const p = currentIncidencia.presencial || {};
+            const isPraia = verificarEstacaoPraia(currentIncidencia.estacion);
+            
+            const elementos = {
+                'presencial_tempo_acreditacao': calcularTempoEntre(p.chegadaAeroporto, p.acreditacao),
+                'presencial_duracao_reparacao': calcularTempoEntre(p.inicioReparacao, p.fimReparacao),
+                'presencial_pos_reparacao': calcularTempoEntre(p.fimReparacao, p.saidaInstalacao),
+                'resumo_chegada': calcularTempoEntre(p.chegadaAeroporto, p.acreditacao),
+                'resumo_reparacao': calcularTempoEntre(p.inicioReparacao, p.fimReparacao),
+                'resumo_pos': calcularTempoEntre(p.fimReparacao, p.saidaInstalacao),
+                'resumo_total': calcularTempoEntre(p.chegadaAeroporto, p.saidaInstalacao)
+            };
+            
+            if (!isPraia) {
+                elementos['presencial_tempo_regresso'] = calcularTempoEntre(p.saidaDestino, p.chegadaPraia);
+                elementos['resumo_regresso'] = calcularTempoEntre(p.saidaDestino, p.chegadaPraia);
+            }
+            
+            for (const [id, valor] of Object.entries(elementos)) {
+                const span = document.getElementById(id);
+                if (span) span.textContent = valor;
+            }
+        }
+
+        // ============================================================
+        // FUNÇÕES DE AUTOPREENCHIMENTO
+        // ============================================================
+
+        function inicializarAutoPreenchimento() {
+            document.querySelectorAll('input[type="date"][data-auto="true"]').forEach(input => {
+                input.addEventListener('focus', function() {
+                    if (!this.value) {
+                        this.value = obterDataAtual();
+                        this.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+            document.querySelectorAll('input[type="time"][data-auto="true"]').forEach(input => {
+                input.addEventListener('focus', function() {
+                    if (!this.value) {
+                        this.value = obterHoraAtual();
+                        this.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+            document.querySelectorAll('input[type="datetime-local"][data-auto="true"]').forEach(input => {
+                input.addEventListener('focus', function() {
+                    if (!this.value) {
+                        this.value = obterDataHoraAtual();
+                        this.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+        }
+
+        // ============================================================
+        // CARREGAR DADOS
+        // ============================================================
+
+        async function checkAuth() {
+            const response = await fetch('/api/check-auth');
+            const data = await response.json();
+            if (!data.authenticated) window.location.href = '/login';
+            else document.getElementById('username').textContent = data.username;
+        }
+
+        async function carregarEstacoes() {
+            const response = await fetch('/api/config/stations');
+            estacoesList = await response.json();
+            return estacoesList;
+        }
+
+        async function carregarIncidente() {
+            const id = window.location.pathname.split('/').pop();
+            document.getElementById('incId').textContent = id;
+            const incidencias = await (await fetch('/api/incidencias')).json();
+            currentIncidencia = incidencias.find(i => i.id == id);
+            if (!currentIncidencia) { window.location.href = '/'; return; }
+            if (!currentIncidencia.remoto) currentIncidencia.remoto = {};
+            if (!currentIncidencia.presencial) currentIncidencia.presencial = {};
+            if (!currentIncidencia.acessos) currentIncidencia.acessos = [];
+            if (!currentIncidencia.viagens) currentIncidencia.viagens = [];
+            await carregarEstacoes();
+            renderFormulario();
+        }
+
+        // ============================================================
+        // RENDERIZAÇÃO DO FORMULÁRIO PRINCIPAL
+        // ============================================================
+
+        function renderFormulario() {
+            const container = document.getElementById('formContainer');
+            if (!container) return;
+            
+            const dataAtual = currentIncidencia.fechaDeteccion || obterDataHoraAtual();
+            const dataMostrar = dataAtual.split('T')[0];
+            const horaMostrar = dataAtual.split('T')[1];
+            const estacoesAtivas = estacoesList.filter(e => e.active);
+            const sintomasLista = ['Perda total comunicação', 'Ruído/interferência', 'Baixa qualidade áudio', 'Falha transmissão', 'Falha recepção', 'Falha conexão internet', 'Problema elétrico', 'Equipamento não responde', 'Outro'];
+            const requerPresencial = currentIncidencia.remoto?.resuelta === 'No';
+            
+            const remotoInicio = currentIncidencia.remoto?.inicio || '';
+            const remotoFim = currentIncidencia.remoto?.fim || '';
+            const remotoInicioData = remotoInicio.split('T')[0] || '';
+            const remotoInicioHora = remotoInicio.split('T')[1] || '';
+            const remotoFimData = remotoFim.split('T')[0] || '';
+            const remotoFimHora = remotoFim.split('T')[1] || '';
+            const horaContacto = currentIncidencia.horaContactoINCO || '';
+            const horaContactoData = horaContacto.split('T')[0] || '';
+            const horaContactoHora = horaContacto.split('T')[1] || '';
+
+            let html = `
+                <div class="secao-card">
+                    <div class="secao-header"><h3>📋 DADOS DO INCIDENTE</h3></div>
+                    <div class="form-group"><label>👤 Operador LACV</label><input type="text" id="operadorLACV" value="${escapeHtml(currentIncidencia.operadorLACV)}" onchange="currentIncidencia.operadorLACV = this.value"></div>
+                    <div class="form-group"><label>📅 Data e hora detecção</label><div style="background:var(--bg-primary); padding:12px; border-radius:12px;">📅 ${dataMostrar} ⏰ ${horaMostrar}</div></div>
+                    <div class="form-group"><label>📍 Estação afetada</label><div class="form-row">`;
+            
+            estacoesAtivas.forEach(est => {
+                html += `<button type="button" class="btn-outline estacao-btn" style="margin-right:8px;margin-bottom:8px; ${currentIncidencia.estacion === est.name ? 'background:#667eea;color:white;' : ''}" data-estacao="${est.name}">${est.name}</button>`;
+            });
+            
+            html += `</div></div>
+                    <div class="form-group"><label>⚠️ Sintomas detectados</label><div class="form-row">`;
+            
+            sintomasLista.forEach(sint => {
+                html += `<button type="button" class="btn-outline sintoma-btn" style="margin-right:8px;margin-bottom:8px; ${currentIncidencia.sintomas?.includes(sint) ? 'background:#667eea;color:white;' : ''}" data-sintoma="${sint}">${sint}</button>`;
+            });
+            
+            html += `</div></div>
+                    <div class="form-group"><label>📝 Descrição detalhada</label><textarea id="descricao" rows="4" onchange="currentIncidencia.descricao = this.value">${escapeHtml(currentIncidencia.descricao)}</textarea></div>
+                    <div class="form-group"><label>⚡ Classificação</label><div class="form-row">
+                        <button type="button" class="btn-outline class-btn" style="${currentIncidencia.classificacao === 'Crítica' ? 'background:#dc3545;color:white;' : ''}" data-class="Crítica">🔴 ALTA</button>
+                        <button type="button" class="btn-outline class-btn" style="${currentIncidencia.classificacao === 'Menor' ? 'background:#28a745;color:white;' : ''}" data-class="Menor">🟢 BAIXA</button>
+                    </div></div>
+                    <div class="form-group"><label>📞 Técnico INCO contatado</label>
+                        <select id="tecnicoINCOSelect" onchange="atualizarTecnicoINCO()">
+                            <option value="">-- Selecionar --</option>
+                            ${tecnicosINCO.map(t => `<option value="${t}" ${currentIncidencia.tecnicoINCO === t ? 'selected' : ''}>${t}</option>`).join('')}
+                        </select>
+                        <input type="text" id="tecnicoINCOOutro" placeholder="Digitar nome" style="margin-top:8px; display:${currentIncidencia.tecnicoINCO && !tecnicosINCO.includes(currentIncidencia.tecnicoINCO) ? 'block' : 'none'}" value="${escapeHtml(currentIncidencia.tecnicoINCO || '')}" oninput="atualizarTecnicoINCO()">
+                        <div class="form-row-datetime" style="margin-top:8px;">
+                            <div class="form-group"><label>📅 Data Contacto</label><input type="date" id="horaContactoINCO_data" value="${horaContactoData}" data-auto="true" onchange="currentIncidencia.horaContactoINCO = (this.value && document.getElementById('horaContactoINCO_hora').value) ? this.value + 'T' + document.getElementById('horaContactoINCO_hora').value : ''"></div>
+                            <div class="form-group"><label>⏰ Hora Contacto</label><input type="time" id="horaContactoINCO_hora" value="${horaContactoHora}" step="60" data-auto="true" onchange="currentIncidencia.horaContactoINCO = (document.getElementById('horaContactoINCO_data').value && this.value) ? document.getElementById('horaContactoINCO_data').value + 'T' + this.value : ''"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="secao-card">
+                    <div class="secao-header"><h3>🖥️ INTERVENÇÃO REMOTA</h3></div>
+                    <div class="subsecao">
+                        <div class="form-row-datetime">
+                            <div class="form-group"><label>📅 Data Início</label><input type="date" id="remotoInicio_data" value="${remotoInicioData}" data-auto="true" onchange="atualizarRemotoInicio()"></div>
+                            <div class="form-group"><label>⏰ Hora Início</label><input type="time" id="remotoInicio_hora" value="${remotoInicioHora}" step="60" data-auto="true" onchange="atualizarRemotoInicio()"></div>
+                        </div>
+                        <div class="form-row-datetime">
+                            <div class="form-group"><label>📅 Data Fim</label><input type="date" id="remotoFim_data" value="${remotoFimData}" data-auto="true" onchange="atualizarRemotoFim()"></div>
+                            <div class="form-group"><label>⏰ Hora Fim</label><input type="time" id="remotoFim_hora" value="${remotoFimHora}" step="60" data-auto="true" onchange="atualizarRemotoFim()"></div>
+                        </div>
+                        <div class="duracao-auto">⏱️ Duração: <span id="remotoDuracaoAuto">${currentIncidencia.remoto?.duracao || '---'}</span></div>
+                        <textarea id="remotoObs" placeholder="Observações" style="margin-top:8px;" onchange="currentIncidencia.remoto.obs = this.value">${escapeHtml(currentIncidencia.remoto?.obs || '')}</textarea>
+                    </div>
+                    <div class="subsecao">
+                        <label>✅ Resolvido remotamente?</label>
+                        <select id="remotoResolvido" style="width:100%; margin-top:8px;" onchange="remotoResolvidoChange(this.value)">
+                            <option value="">-- Selecionar --</option>
+                            <option value="Si" ${currentIncidencia.remoto?.resuelta === 'Si' ? 'selected' : ''}>Sim, resolvido</option>
+                            <option value="No" ${currentIncidencia.remoto?.resuelta === 'No' ? 'selected' : ''}>Não, requer intervenção presencial</option>
+                        </select>
+                    </div>
+                </div>`;
+
+            if (requerPresencial) {
+                html += `
+                <div class="secao-card">
+                    <div class="secao-header"><h3>🔐 GESTÃO DE ACESSOS</h3></div>
+                    <div id="acessosList"></div>
+                    <button class="btn-primary btn-largo" onclick="adicionarAcesso()">+ Adicionar Acesso</button>
+                </div>
+
+                <div class="secao-card">
+                    <div class="secao-header"><h3>✈️ GESTÃO DE VIAGENS</h3></div>
+                    <div id="viagensList"></div>
+                    <button class="btn-primary btn-largo" onclick="adicionarViagem()">+ Adicionar Viagem</button>
+                </div>
+
+                <div class="secao-card">
+                    <div class="secao-header"><h3>🔧 INTERVENÇÃO PRESENCIAL</h3></div>
+                    <div id="presencialList"></div>
+                </div>`;
+            }
+
+            html += `
+                <div class="form-row" style="margin-top:30px;">
+                    <button class="btn-primary" onclick="guardarIncidente()">✅ Atualizar Incidente</button>
+                    ${currentIncidencia.estado !== 'Cerrada' ? `<button class="btn-danger" onclick="fecharIncidente()" style="margin-left:10px;">🔒 Fechar Incidente</button>` : ''}
+                </div>`;
+            
+            container.innerHTML = html;
+            
+            document.querySelectorAll('.estacao-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentIncidencia.estacion = btn.getAttribute('data-estacao');
+                    renderFormulario();
+                });
+            });
+            document.querySelectorAll('.sintoma-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const sint = btn.getAttribute('data-sintoma');
+                    if (!currentIncidencia.sintomas.includes(sint)) currentIncidencia.sintomas.push(sint);
+                    else currentIncidencia.sintomas = currentIncidencia.sintomas.filter(s => s !== sint);
+                    renderFormulario();
+                });
+            });
+            document.querySelectorAll('.class-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentIncidencia.classificacao = btn.getAttribute('data-class');
+                    renderFormulario();
+                });
+            });
+            
+            inicializarAutoPreenchimento();
+            
+            if (requerPresencial) {
+                renderAcessos();
+                renderViagens();
+                renderPresencial();
+            }
+        }
+
+        function remotoResolvidoChange(valor) {
+            if (!currentIncidencia.remoto) currentIncidencia.remoto = {};
+            currentIncidencia.remoto.resuelta = valor;
+            if (valor === 'Si') {
+                if (confirm('✅ Incidente resolvido remotamente. Deseja fechar o incidente?')) {
+                    currentIncidencia.estado = 'Cerrada';
+                    currentIncidencia.fechaCierre = new Date().toISOString();
+                    alert('O incidente será fechado ao guardar as alterações.');
+                }
+            }
+            renderFormulario();
+        }
+
+        function atualizarTecnicoINCO() { 
+            const select = document.getElementById('tecnicoINCOSelect'); 
+            const outro = document.getElementById('tecnicoINCOOutro'); 
+            currentIncidencia.tecnicoINCO = select.value === 'Outro' ? outro.value : select.value; 
+        }
+
+        // ============================================================
+        // COMPONENTE DE SELEÇÃO MÚLTIPLA DE TÉCNICOS
+        // ============================================================
+        
+        function criarSelectorTecnicos(containerId, valorInicial, onChangeCallback) {
+            const tecnicosDisponiveis = [...tecnicosINCO];
+            let selecionados = valorInicial ? valorInicial.split(',').map(t => t.trim()) : [];
+            
+            function render() {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                let html = `
+                    <div style="margin-bottom: 10px;">
+                        <label>👥 Selecionar Técnico(s):</label>
+                        <div style="display: flex; gap: 10px; margin-top: 5px;">
+                            <select id="${containerId}_select" style="flex: 1;">
+                                <option value="">-- Selecione um técnico --</option>
+                                ${tecnicosDisponiveis.filter(t => !selecionados.includes(t)).map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
+                            <button type="button" class="btn-add-tecnico" onclick="adicionarTecnico('${containerId}')">+ Adicionar</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label>Técnico(s) selecionado(s):</label>
+                        <div id="${containerId}_lista" class="tecnicos-selecionados">
+                            ${selecionados.map(tec => `<span class="tecnicos-badge">${tec}<button type="button" onclick="removerTecnico('${containerId}', '${tec}')">✖</button></span>`).join('')}
+                            ${selecionados.length === 0 ? '<span style="color:#999;">Nenhum técnico selecionado</span>' : ''}
+                        </div>
+                    </div>
+                    <input type="hidden" id="${containerId}_value" value="${selecionados.join(',')}">
+                `;
+                container.innerHTML = html;
+            }
+            
+            window[`adicionarTecnico_${containerId}`] = function() {
+                const select = document.getElementById(`${containerId}_select`);
+                const tecnico = select.value;
+                if (tecnico && !selecionados.includes(tecnico)) {
+                    selecionados.push(tecnico);
+                    if (onChangeCallback) onChangeCallback(selecionados.join(','));
+                    render();
+                }
+            };
+            
+            window[`removerTecnico_${containerId}`] = function(tecnico) {
+                selecionados = selecionados.filter(t => t !== tecnico);
+                if (onChangeCallback) onChangeCallback(selecionados.join(','));
+                render();
+            };
+            
+            render();
+            return { getValue: () => selecionados.join(','), setValue: (val) => { selecionados = val ? val.split(',').map(t => t.trim()) : []; if (onChangeCallback) onChangeCallback(selecionados.join(',')); render(); } };
+        }
+        
+        window.adicionarTecnico = function(containerId) { const func = window[`adicionarTecnico_${containerId}`]; if (func) func(); };
+        window.removerTecnico = function(containerId, tecnico) { const func = window[`removerTecnico_${containerId}`]; if (func) func(tecnico); };
+
+        // ============================================================
+        // RENDERIZAÇÃO DOS ACESSOS
+        // ============================================================
+        
+        function renderAcessos() {
+            const container = document.getElementById('acessosList');
+            if (!container) return;
+            if (!currentIncidencia.acessos || currentIncidencia.acessos.length === 0) {
+                container.innerHTML = '<p style="color:#999; text-align:center;">Nenhum acesso registrado.</p>';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 0; i < currentIncidencia.acessos.length; i++) {
+                const acc = currentIncidencia.acessos[i];
+                const tecnicosSelecionados = acc.tecnicos || '';
+                const solicitacao = acc.solicitacao || '';
+                const concessao = acc.concessao || '';
+                const horaEstimada = acc.horaEstimada || '';
+                const emailEnviado = acc.emailEnviado || false;
+                const botaoTexto = emailEnviado ? '🔄 Atualizar Solicitação de Acesso' : '📧 Enviar Solicitação de Acesso';
+                const botaoClass = emailEnviado ? 'btn-atualizar' : 'btn-success';
+                
+                const solicitacaoDisplay = emailEnviado ? 
+                    `<div class="info-enviado">📅 ${formatarDataHoraParaDisplay(solicitacao)}</div>` :
+                    `<div class="form-row-datetime">
+                        <div class="form-group"><label>📅 Data Solicitação</label><input type="date" id="acesso_solicitacao_data_${i}" value="${solicitacao.split('T')[0] || ''}" data-auto="false" onchange="atualizarCampoAcesso(${i}, 'solicitacao', this.value + 'T' + (document.getElementById('acesso_solicitacao_hora_${i}')?.value || ''))"></div>
+                        <div class="form-group"><label>⏰ Hora Solicitação</label><input type="time" id="acesso_solicitacao_hora_${i}" value="${solicitacao.split('T')[1] || ''}" step="60" data-auto="false" onchange="atualizarCampoAcesso(${i}, 'solicitacao', (document.getElementById('acesso_solicitacao_data_${i}')?.value || '') + 'T' + this.value)"></div>
+                    </div>`;
+                
+                html += `
+                    <div class="item-dinamico">
+                        <div class="item-header"><strong>🔐 Acesso #${i+1}</strong><button class="btn-danger" onclick="removerAcesso(${i})">🗑️ Eliminar</button></div>
+                        <div id="acesso_tecnicos_${i}_container"></div>
+                        <div class="form-group">
+                            <label>📅 Solicitação de Acesso</label>
+                            ${solicitacaoDisplay}
+                            <div class="info-auto">${emailEnviado ? 'Solicitação já enviada.' : 'A data/hora será gerada no momento do envio'}</div>
+                        </div>
+                        <div class="form-group">
+                            <label>📅 Data/Hora estimada de acesso à instalação</label>
+                            <input type="datetime-local" id="acesso_hora_estimada_${i}" value="${horaEstimada}" step="60" data-auto="false" onchange="atualizarCampoAcesso(${i}, 'horaEstimada', this.value)">
+                            <div class="info-auto">Preencha manualmente com a data/hora prevista</div>
+                        </div>
+                        <div class="form-row-datetime">
+                            <div class="form-group"><label>✅ Concessão</label><input type="date" id="acesso_concessao_data_${i}" value="${concessao.split('T')[0] || ''}" data-auto="true" onchange="atualizarCampoAcesso(${i}, 'concessao', this.value + 'T' + (document.getElementById('acesso_concessao_hora_${i}')?.value || ''))"></div>
+                            <div class="form-group"><label>⏰ Hora Concessão</label><input type="time" id="acesso_concessao_hora_${i}" value="${concessao.split('T')[1] || ''}" step="60" data-auto="true" onchange="atualizarCampoAcesso(${i}, 'concessao', (document.getElementById('acesso_concessao_data_${i}')?.value || '') + 'T' + this.value)"></div>
+                        </div>
+                        <div class="form-group"><label>📎 Documentos dos técnicos</label><div id="acesso_documentos_lista_${i}" class="documentos-lista">${gerarListaDocumentos(tecnicosSelecionados.split(','))}</div></div>
+                        <div class="duracao-auto">⏱️ Tempo até concessão: <span id="tempo_concessao_${i}">${calcularTempoEntre(solicitacao, concessao)}</span></div>
+                        <button class="${botaoClass} btn-largo" id="btn_enviar_acesso_${i}" onclick="enviarSolicitacaoAcesso(${i})">${botaoTexto}</button>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+            
+            for (let i = 0; i < currentIncidencia.acessos.length; i++) {
+                const acc = currentIncidencia.acessos[i];
+                const containerId = `acesso_tecnicos_${i}_container`;
+                criarSelectorTecnicos(containerId, acc.tecnicos || '', (valor) => {
+                    currentIncidencia.acessos[i].tecnicos = valor;
+                    const listaDiv = document.getElementById(`acesso_documentos_lista_${i}`);
+                    if (listaDiv) listaDiv.innerHTML = gerarListaDocumentos(valor.split(','));
+                });
+            }
+        }
+        
+        function atualizarCampoAcesso(idx, campo, valor) {
+            if (!currentIncidencia.acessos[idx]) currentIncidencia.acessos[idx] = {};
+            currentIncidencia.acessos[idx][campo] = valor;
+            if (campo === 'solicitacao' || campo === 'concessao') {
+                const span = document.getElementById(`tempo_concessao_${idx}`);
+                if (span) span.textContent = calcularTempoEntre(currentIncidencia.acessos[idx].solicitacao, currentIncidencia.acessos[idx].concessao);
+            }
+        }
+        
+        function gerarListaDocumentos(tecnicos) {
+            if (!tecnicos || tecnicos.length === 0 || (tecnicos.length === 1 && tecnicos[0] === '')) return '<span class="badge-doc">Nenhum documento associado</span>';
+            const docs = new Set();
+            tecnicos.forEach(tec => { if (documentosTecnicos[tec.trim()]) documentosTecnicos[tec.trim()].forEach(doc => docs.add(doc)); });
+            if (docs.size === 0) return '<span class="badge-doc">Nenhum documento associado</span>';
+            return Array.from(docs).map(doc => `<span class="badge-doc">📄 ${doc}</span>`).join('');
+        }
+        
+        async function enviarSolicitacaoAcesso(idx) {
+            const acesso = currentIncidencia.acessos[idx];
+            const botao = document.getElementById(`btn_enviar_acesso_${idx}`);
+            
+            const tipo = acesso.emailEnviado ? 'atualizacao_acesso' : 'acesso';
+            
+            // Gerar data/hora da solicitação no momento do envio (apenas no primeiro envio)
+            if (!acesso.emailEnviado) {
+                const agora = obterDataHoraAtual();
+                acesso.solicitacao = agora;
+                atualizarCampoAcesso(idx, 'solicitacao', agora);
+            }
+            
+            const tecnicos = acesso.tecnicos || '';
+            const documentos = [];
+            if (tecnicos) {
+                tecnicos.split(',').forEach(tec => {
+                    if (documentosTecnicos[tec.trim()]) {
+                        documentos.push(...documentosTecnicos[tec.trim()]);
+                    }
+                });
+            }
+            
+            await fetch('/api/enviar-solicitud', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tipo: tipo,
+                    dados: {
+                        incidencia_id: currentIncidencia.id,
+                        estacion: currentIncidencia.estacion,
+                        operador: currentIncidencia.operadorLACV,
+                        tecnicos: tecnicos,
+                        solicitacao: acesso.solicitacao,
+                        horaEstimada: acesso.horaEstimada,
+                        concessao: acesso.concessao,
+                        documentos: documentos
+                    }
+                })
+            });
+            
+            acesso.emailEnviado = true;
+            if (botao) {
+                botao.textContent = '🔄 Atualizar Solicitação de Acesso';
+                botao.classList.remove('btn-success');
+                botao.classList.add('btn-atualizar');
+            }
+            
+            renderAcessos();
+            alert('Solicitação de acesso enviada com sucesso!');
+        }
+        
+        function removerAcesso(idx) { currentIncidencia.acessos.splice(idx, 1); renderAcessos(); }
+        function adicionarAcesso() { 
+            if (!currentIncidencia.acessos) currentIncidencia.acessos = []; 
+            currentIncidencia.acessos.push({ solicitacao: '', concessao: '', tecnicos: '', horaEstimada: '', emailEnviado: false }); 
+            renderAcessos(); 
+        }
+
+        // ============================================================
+        // RENDERIZAÇÃO DOS VIAJES
+        // ============================================================
+        
+        function renderViagens() {
+            const container = document.getElementById('viagensList');
+            if (!container) return;
+            if (!currentIncidencia.viagens || currentIncidencia.viagens.length === 0) {
+                container.innerHTML = '<p style="color:#999; text-align:center;">Nenhuma viagem registrada.</p>';
+                return;
+            }
+            
+            let html = '';
+            for (let i = 0; i < currentIncidencia.viagens.length; i++) {
+                const via = currentIncidencia.viagens[i];
+                const tecnicosSelecionados = via.tecnicos || '';
+                const solicitacao = via.solicitacao || '';
+                const confirmacao = via.confirmacao || '';
+                const diasHotel = calcularDiasHotel(via.fechaIda, via.fechaVuelta);
+                const emailEnviado = via.emailEnviado || false;
+                const botaoTexto = emailEnviado ? '🔄 Atualizar Solicitação de Viagem' : '📧 Enviar Solicitação de Viagem';
+                const botaoClass = emailEnviado ? 'btn-atualizar' : 'btn-success';
+                
+                const solicitacaoDisplay = emailEnviado ? 
+                    `<div class="info-enviado">📅 ${formatarDataHoraParaDisplay(solicitacao)}</div>` :
+                    `<div class="form-row-datetime">
+                        <div class="form-group"><label>📅 Data Solicitação</label><input type="date" id="viagem_solicitacao_data_${i}" value="${solicitacao.split('T')[0] || ''}" data-auto="false" onchange="atualizarCampoViagem(${i}, 'solicitacao', this.value + 'T' + (document.getElementById('viagem_solicitacao_hora_${i}')?.value || ''))"></div>
+                        <div class="form-group"><label>⏰ Hora Solicitação</label><input type="time" id="viagem_solicitacao_hora_${i}" value="${solicitacao.split('T')[1] || ''}" step="60" data-auto="false" onchange="atualizarCampoViagem(${i}, 'solicitacao', (document.getElementById('viagem_solicitacao_data_${i}')?.value || '') + 'T' + this.value)"></div>
+                    </div>`;
+                
+                html += `
+                    <div class="item-dinamico">
+                        <div class="item-header"><strong>✈️ Viagem #${i+1}</strong><button class="btn-danger" onclick="removerViagem(${i})">🗑️ Eliminar</button></div>
+                        <div id="viagem_tecnicos_${i}_container"></div>
+                        <div class="form-group">
+                            <label>📅 Solicitação de Viagem</label>
+                            ${solicitacaoDisplay}
+                            <div class="info-auto">${emailEnviado ? 'Solicitação já enviada.' : 'A data/hora será gerada no momento do envio'}</div>
+                        </div>
+                        <div class="form-row-datetime">
+                            <div class="form-group"><label>✅ Confirmação</label><input type="date" id="viagem_confirmacao_data_${i}" value="${confirmacao.split('T')[0] || ''}" data-auto="true" onchange="atualizarCampoViagem(${i}, 'confirmacao', this.value + 'T' + (document.getElementById('viagem_confirmacao_hora_${i}')?.value || ''))"></div>
+                            <div class="form-group"><label>⏰ Hora Confirmação</label><input type="time" id="viagem_confirmacao_hora_${i}" value="${confirmacao.split('T')[1] || ''}" step="60" data-auto="true" onchange="atualizarCampoViagem(${i}, 'confirmacao', (document.getElementById('viagem_confirmacao_data_${i}')?.value || '') + 'T' + this.value)"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>📅 Data de Ida</label><input type="date" id="viagem_ida_${i}" value="${via.fechaIda || ''}" data-auto="false" onchange="atualizarCampoViagem(${i}, 'fechaIda', this.value); atualizarDiasHotel(${i})"></div>
+                            <div class="form-group"><label>📅 Data de Volta</label><input type="date" id="viagem_volta_${i}" value="${via.fechaVuelta || ''}" data-auto="false" onchange="atualizarCampoViagem(${i}, 'fechaVuelta', this.value); atualizarDiasHotel(${i})"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>🚗 Meio de transporte</label><select id="viagem_medio_${i}" onchange="atualizarCampoViagem(${i}, 'medio', this.value)"><option value="Avião" ${via.medio === 'Avião' ? 'selected' : ''}>✈️ Avião</option><option value="Barco" ${via.medio === 'Barco' ? 'selected' : ''}>⛴️ Barco</option><option value="Carro" ${via.medio === 'Carro' ? 'selected' : ''}>🚗 Carro</option></select></div>
+                            <div class="form-group"><label>🧳 Maletas</label><input type="number" id="viagem_maletas_${i}" value="${via.maletas || 0}" onchange="atualizarCampoViagem(${i}, 'maletas', this.value)" min="0" step="1"></div>
+                        </div>
+                        <div class="form-group"><label>📝 Observações</label><textarea id="viagem_obs_${i}" rows="2" onchange="atualizarCampoViagem(${i}, 'obs', this.value)">${escapeHtml(via.obs || '')}</textarea></div>
+                        <div class="duracao-auto">⏱️ Tempo até confirmação: <span id="tempo_confirmacao_${i}">${calcularTempoEntre(solicitacao, confirmacao)}</span></div>
+                        <div class="duracao-auto">⏱️ Duração: <span id="tempo_viagem_${i}">${calcularTempoEntre(via.fechaIda, via.fechaVuelta)}</span></div>
+                        <div class="duracao-auto">🏨 Dias de hotel: <span id="hotel_dias_${i}">${diasHotel}</span></div>
+                        <button class="${botaoClass} btn-largo" id="btn_enviar_viagem_${i}" onclick="enviarSolicitacaoViagem(${i})">${botaoTexto}</button>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+            
+            for (let i = 0; i < currentIncidencia.viagens.length; i++) {
+                const via = currentIncidencia.viagens[i];
+                const containerId = `viagem_tecnicos_${i}_container`;
+                criarSelectorTecnicos(containerId, via.tecnicos || '', (valor) => { currentIncidencia.viagens[i].tecnicos = valor; });
+            }
+        }
+        
+        async function enviarSolicitacaoViagem(idx) {
+            const viagem = currentIncidencia.viagens[idx];
+            const botao = document.getElementById(`btn_enviar_viagem_${idx}`);
+            
+            const tipo = viagem.emailEnviado ? 'atualizacao_viagem' : 'viagem';
+            
+            // Gerar data/hora da solicitação no momento do envio (apenas no primeiro envio)
+            if (!viagem.emailEnviado) {
+                const agora = obterDataHoraAtual();
+                viagem.solicitacao = agora;
+                atualizarCampoViagem(idx, 'solicitacao', agora);
+            }
+            
+            await fetch('/api/enviar-solicitud', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tipo: tipo,
+                    dados: {
+                        incidencia_id: currentIncidencia.id,
+                        estacion: currentIncidencia.estacion,
+                        operador: currentIncidencia.operadorLACV,
+                        tecnicos: viagem.tecnicos || '',
+                        solicitacao: viagem.solicitacao,
+                        confirmacao: viagem.confirmacao,
+                        fecha_ida: viagem.fechaIda,
+                        fecha_vuelta: viagem.fechaVuelta,
+                        medio: viagem.medio || 'Avião',
+                        maletas: viagem.maletas || 0,
+                        hotelDias: viagem.hotelDias || 0,
+                        obs: viagem.obs || ''
+                    }
+                })
+            });
+            
+            viagem.emailEnviado = true;
+            if (botao) {
+                botao.textContent = '🔄 Atualizar Solicitação de Viagem';
+                botao.classList.remove('btn-success');
+                botao.classList.add('btn-atualizar');
+            }
+            
+            renderViagens();
+            alert('Solicitação de viagem enviada com sucesso!');
+        }
+        
+        function atualizarCampoViagem(idx, campo, valor) { 
+            if (!currentIncidencia.viagens[idx]) currentIncidencia.viagens[idx] = {}; 
+            currentIncidencia.viagens[idx][campo] = valor; 
+            if (campo === 'solicitacao' || campo === 'confirmacao') {
+                const span = document.getElementById(`tempo_confirmacao_${idx}`);
+                if (span) span.textContent = calcularTempoEntre(currentIncidencia.viagens[idx].solicitacao, currentIncidencia.viagens[idx].confirmacao);
+            }
+            if (campo === 'fechaIda' || campo === 'fechaVuelta') atualizarDiasHotel(idx); 
+        }
+        
+        function atualizarDiasHotel(idx) { 
+            const via = currentIncidencia.viagens[idx]; 
+            if (via) { 
+                const dias = calcularDiasHotel(via.fechaIda, via.fechaVuelta); 
+                const span = document.getElementById(`hotel_dias_${idx}`); 
+                if (span) span.textContent = dias; 
+                via.hotelDias = dias; 
+            } 
+        }
+        
+        function removerViagem(idx) { currentIncidencia.viagens.splice(idx, 1); renderViagens(); }
+        function adicionarViagem() { 
+            if (!currentIncidencia.viagens) currentIncidencia.viagens = []; 
+            currentIncidencia.viagens.push({ solicitacao: '', confirmacao: '', fechaIda: '', fechaVuelta: '', medio: 'Avião', tecnicos: '', maletas: 0, hotelDias: 0, obs: '', emailEnviado: false }); 
+            renderViagens(); 
+        }
+
+        // ============================================================
+        // INTERVENÇÃO PRESENCIAL
+        // ============================================================
+        
+        function renderPresencial() {
+            const container = document.getElementById('presencialList');
+            if (!container) return;
+            
+            const isPraia = verificarEstacaoPraia(currentIncidencia.estacion);
+            const p = currentIncidencia.presencial || {};
+            
+            let html = `
+                <div class="subsecao">
+                    <div class="subsecao-title">📍 DESLOCAMENTO E ACREDITAÇÃO</div>
+                    <div class="form-row-datetime">
+                        <div class="form-group"><label>🛬 Chegada ao Aeroporto${!isPraia ? ' de Destino' : ' Nelson Mandela'}</label><input type="datetime-local" id="presencial_chegada_aeroporto" value="${p.chegadaAeroporto || ''}" step="60" data-auto="true" onchange="atualizarPresencial('chegadaAeroporto', this.value)"></div>
+                        <div class="form-group"><label>🪪 Acreditação</label><input type="datetime-local" id="presencial_acreditacao" value="${p.acreditacao || ''}" step="60" data-auto="true" onchange="atualizarPresencial('acreditacao', this.value)"></div>
+                    </div>
+                    <div class="duracao-auto">⏱️ Tempo até acreditação: <span id="presencial_tempo_acreditacao">${calcularTempoEntre(p.chegadaAeroporto, p.acreditacao)}</span></div>
+                </div>
+                <div class="subsecao">
+                    <div class="subsecao-title">🔧 REPARAÇÃO</div>
+                    <div class="form-row-datetime">
+                        <div class="form-group"><label>🛠️ Início</label><input type="datetime-local" id="presencial_inicio_reparacao" value="${p.inicioReparacao || ''}" step="60" data-auto="true" onchange="atualizarPresencial('inicioReparacao', this.value)"></div>
+                        <div class="form-group"><label>✅ Fim</label><input type="datetime-local" id="presencial_fim_reparacao" value="${p.fimReparacao || ''}" step="60" data-auto="true" onchange="atualizarPresencial('fimReparacao', this.value)"></div>
+                    </div>
+                    <div class="duracao-auto">⏱️ Duração: <span id="presencial_duracao_reparacao">${calcularTempoEntre(p.inicioReparacao, p.fimReparacao)}</span></div>
+                </div>
+                <div class="subsecao">
+                    <div class="subsecao-title">🚪 SAÍDA</div>
+                    <div class="form-group"><label>📍 Saída</label><input type="datetime-local" id="presencial_saida_instalacao" value="${p.saidaInstalacao || ''}" step="60" data-auto="true" onchange="atualizarPresencial('saidaInstalacao', this.value)"></div>
+                    <div class="duracao-auto">⏱️ Tempo pós reparação: <span id="presencial_pos_reparacao">${calcularTempoEntre(p.fimReparacao, p.saidaInstalacao)}</span></div>
+                </div>`;
+            
+            if (!isPraia) {
+                html += `
+                <div class="subsecao">
+                    <div class="subsecao-title">✈️ REGRESSO</div>
+                    <div class="form-row-datetime">
+                        <div class="form-group"><label>🛫 Saída Destino</label><input type="datetime-local" id="presencial_saida_destino" value="${p.saidaDestino || ''}" step="60" data-auto="true" onchange="atualizarPresencial('saidaDestino', this.value)"></div>
+                        <div class="form-group"><label>🛬 Chegada Praia</label><input type="datetime-local" id="presencial_chegada_praia" value="${p.chegadaPraia || ''}" step="60" data-auto="true" onchange="atualizarPresencial('chegadaPraia', this.value)"></div>
+                    </div>
+                    <div class="duracao-auto">⏱️ Tempo de regresso: <span id="presencial_tempo_regresso">${calcularTempoEntre(p.saidaDestino, p.chegadaPraia)}</span></div>
+                </div>`;
+            }
+            
+            html += `
+                <div class="tempo-resumo">
+                    <div class="subsecao-title">📊 RESUMO</div>
+                    <div class="form-row">
+                        <div class="form-group"><label>⏱️ Chegada → Acreditação</label><div class="tempo-valor" id="resumo_chegada">${calcularTempoEntre(p.chegadaAeroporto, p.acreditacao)}</div></div>
+                        <div class="form-group"><label>🔧 Reparação</label><div class="tempo-valor" id="resumo_reparacao">${calcularTempoEntre(p.inicioReparacao, p.fimReparacao)}</div></div>
+                        <div class="form-group"><label>🚪 Pós Reparação</label><div class="tempo-valor" id="resumo_pos">${calcularTempoEntre(p.fimReparacao, p.saidaInstalacao)}</div></div>`;
+            if (!isPraia) html += `<div class="form-group"><label>✈️ Regresso</label><div class="tempo-valor" id="resumo_regresso">${calcularTempoEntre(p.saidaDestino, p.chegadaPraia)}</div></div>`;
+            html += `
+                    </div>
+                    <div class="tempo-total">📊 TEMPO TOTAL: <span id="resumo_total">${calcularTempoEntre(p.chegadaAeroporto, p.saidaInstalacao)}</span></div>
+                </div>
+                <div class="form-group"><label>📌 Resultado</label>
+                    <select id="presencial_resultado" onchange="presencialResultadoChange(this.value)">
+                        <option value="">-- Selecione --</option>
+                        <option value="Resuelta" ${p.resultado === 'Resuelta' ? 'selected' : ''}>Resolvida</option>
+                        <option value="Provisional" ${p.resultado === 'Provisional' ? 'selected' : ''}>Solução provisória</option>
+                        <option value="NoResuelta" ${p.resultado === 'NoResuelta' ? 'selected' : ''}>Não resolvida → prolongada</option>
+                    </select>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+        
+        function presencialResultadoChange(valor) {
+            if (!currentIncidencia.presencial) currentIncidencia.presencial = {};
+            currentIncidencia.presencial.resultado = valor;
+            if (valor === 'Resuelta' && confirm('✅ Resolvido. Deseja fechar o incidente?')) {
+                currentIncidencia.estado = 'Cerrada';
+                currentIncidencia.fechaCierre = new Date().toISOString();
+                alert('Será fechado ao guardar.');
+            }
+        }
+
+        // ============================================================
+        // GUARDAR E FECHAR
+        // ============================================================
+        
+        async function guardarIncidente() {
+            let incidencias = await (await fetch('/api/incidencias')).json();
+            const idx = incidencias.findIndex(i => i.id == currentIncidencia.id);
+            if (idx !== -1) incidencias[idx] = currentIncidencia;
+            await fetch('/api/incidencias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(incidencias) });
+            await fetch('/api/enviar-correo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ incidencia: currentIncidencia, tipo: 'actualizacion' }) });
+            alert(`Incidente #${currentIncidencia.id} atualizado!`);
+            window.location.href = '/';
+        }
+        
+        async function fecharIncidente() {
+            if (!confirm('Tem certeza?')) return;
+            currentIncidencia.estado = 'Cerrada';
+            currentIncidencia.fechaCierre = new Date().toISOString();
+            let incidencias = await (await fetch('/api/incidencias')).json();
+            const idx = incidencias.findIndex(i => i.id == currentIncidencia.id);
+            if (idx !== -1) incidencias[idx] = currentIncidencia;
+            await fetch('/api/incidencias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(incidencias) });
+            await fetch('/api/enviar-correo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ incidencia: currentIncidencia, tipo: 'cierre' }) });
+            alert(`Incidente #${currentIncidencia.id} fechado!`);
+            window.location.href = '/';
+        }
+        
+        async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login'; }
+        
+        // Expor funções globais
+        window.atualizarRemotoInicio = atualizarRemotoInicio;
+        window.atualizarRemotoFim = atualizarRemotoFim;
+        window.atualizarPresencial = atualizarPresencial;
+        window.removerAcesso = removerAcesso;
+        window.removerViagem = removerViagem;
+        window.adicionarAcesso = adicionarAcesso;
+        window.adicionarViagem = adicionarViagem;
+        window.guardarIncidente = guardarIncidente;
+        window.fecharIncidente = fecharIncidente;
+        window.logout = logout;
+        window.remotoResolvidoChange = remotoResolvidoChange;
+        window.presencialResultadoChange = presencialResultadoChange;
+        window.atualizarCampoAcesso = atualizarCampoAcesso;
+        window.atualizarCampoViagem = atualizarCampoViagem;
+        window.enviarSolicitacaoAcesso = enviarSolicitacaoAcesso;
+        window.enviarSolicitacaoViagem = enviarSolicitacaoViagem;
+        
+        // Inicializar
+        checkAuth();
+        carregarIncidente();
+    </script>
+</body>
+</html>
